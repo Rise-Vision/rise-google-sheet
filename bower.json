@@ -1,0 +1,31 @@
+{
+  "name": "rise-google-sheet",
+  "version": "1.0.0",
+  "authors": [
+    "Stuart Lees <stuart.lees@risevision.com>"
+  ],
+  "description": "Rise Vision web component for retrieving Google Sheet data",
+  "main": "rise-google-sheet.html",
+  "keywords": [
+    "polymer",
+    "web-components",
+    "google-sheets"
+  ],
+  "license": "GPLv3",
+  "homepage": "https://github.com/Rise-Vision/web-component-rise-google-sheet",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "test"
+  ],
+  "dependencies": {
+    "polymer": "Polymer/polymer#^1.0.0",
+    "underscore": "~1.8.2"
+  },
+  "devDependencies": {
+    "rise-page": "https://github.com/Rise-Vision/web-component-rise-page.git",
+    "rise-playlist": "https://github.com/Rise-Vision/web-component-rise-playlist.git",
+    "rise-playlist-item": "https://github.com/Rise-Vision/web-component-rise-playlist-item.git",
+    "web-component-tester": "~3.1.3"
+  }
+}
