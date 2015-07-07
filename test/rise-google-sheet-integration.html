@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>rise-google-sheet</title>
+
+  <script src="../bower_components/webcomponentsjs/webcomponents-lite.min.js"></script>
+  <script src="../bower_components/web-component-tester/browser.js"></script>
+
+  <link rel="import" href="../rise-google-sheet.html">
+</head>
+<body>
+
+<rise-google-sheet id="request"></rise-google-sheet>
+
+<script>
+  suite("rise-google-sheet", function() {
+    var clock, responded, listener,
+      sheetRequest = document.querySelector("#request");
+
+    // Runs for every suite.
+    suiteSetup(function() {
+      clock = sinon.useFakeTimers();
+    });
+
+    suiteTeardown(function() {
+      clock.restore();
+    });
+
+    // Runs for every test.
+    setup(function() {
+      responded = false;
+    });
+
+    // TODO: tests to come
+
+  });
+</script>
+</body>
+</html>
