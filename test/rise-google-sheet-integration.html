@@ -12,28 +12,40 @@
 </head>
 <body>
 
-<rise-google-sheet id="request"></rise-google-sheet>
+<rise-google-sheet id="request" key="abc123"></rise-google-sheet>
+
+<script src="data/sheet.js"></script>
 
 <script>
   suite("rise-google-sheet", function() {
-    var clock, responded, listener,
+    var clock, server, responseHandler,
       sheetRequest = document.querySelector("#request");
 
     // Runs for every suite.
     suiteSetup(function() {
+      server = sinon.fakeServer.create();
+      server.respondImmediately = true;
+
       clock = sinon.useFakeTimers();
     });
 
     suiteTeardown(function() {
+      server.restore();
       clock.restore();
     });
 
-    // Runs for every test.
-    setup(function() {
-      responded = false;
-    });
+    suite("request data", function() {
+      test("should return an Array of cell objects", function(done) {
+        responseHandler = function(response) {
+          assert.deepEqual(response.detail.cells, sheetData.feed.entry);
+          done();
+        };
 
-    // TODO: tests to come
+        sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
+        server.respondWith([200, {}, JSON.stringify(sheetData)]);
+        sheetRequest.go();
+      });
+    });
 
   });
 </script>

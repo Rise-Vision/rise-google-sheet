@@ -19,6 +19,7 @@
     "test"
   ],
   "dependencies": {
+    "iron-ajax": "PolymerElements/iron-ajax#^1.0.0",
     "polymer": "Polymer/polymer#^1.0.0",
     "underscore": "~1.8.2"
   },
