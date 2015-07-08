@@ -4,7 +4,6 @@
 <dom-module id="rise-google-sheet">
   <template>
     <iron-ajax id="sheet"
-               params='{"alt": "json"}'
                handle-as="json"
                on-response="_onSheetResponse"
                on-error="_onSheetError">
@@ -64,15 +63,51 @@
           value: function() { return []; },
           readOnly: true,
           notify: true
+        },
+
+        /**
+         * The starting column of the worksheet.
+         */
+        minColumn: {
+          type: Number,
+          value: 0
+        },
+
+        /**
+         * The last column of the worksheet to include.
+         */
+        maxColumn: {
+          type: Number,
+          value: 0
+        },
+
+        /**
+         * The starting row of the worksheet.
+         */
+        minRow: {
+          type: Number,
+          value: 0
+        },
+
+        /**
+         * The last row of the worksheet to include.
+         */
+        maxRow: {
+          type: Number,
+          value: 0
         }
       },
 
       _prepareResponse: function (resp) {
         var response = {};
 
-        response.cells = resp.feed.entry;
+        /*
+         Provide an empty array if entry property missing in feed object. This can occur if any range
+         values (minColumn, maxColumn, minRow, maxRow) are out of scope of the data entered in worksheet
+        */
+        response.cells = (resp.feed.entry) ? resp.feed.entry : [];
 
-        // TODO: provide meta data (title, authors, etc)?
+        // TODO: provide spreadsheet meta data (title, authors, etc)?
 
         return response;
       },
@@ -97,15 +132,56 @@
         }
       },
 
+      _getParams: function() {
+        var params = {};
+
+        // required in every request
+        params.alt = "json";
+
+        this.minColumn = parseInt(this.minColumn, 10);
+        this.maxColumn = parseInt(this.maxColumn, 10);
+        this.minRow = parseInt(this.minRow, 10);
+        this.maxRow = parseInt(this.maxRow, 10);
+
+        if (!isNaN(this.minColumn) && this.minColumn !== 0) {
+          params["min-col"] = this.minColumn;
+        }
+
+        if (!isNaN(this.maxColumn) && this.maxColumn !== 0) {
+          params["max-col"] = this.maxColumn;
+        }
+
+        if (!isNaN(this.minRow) && this.minRow !== 0) {
+          params["min-row"] = this.minRow;
+        }
+
+        if (!isNaN(this.maxRow) && this.maxRow !== 0) {
+          params["max-row"] = this.maxRow;
+        }
+
+        return params;
+      },
+
+      _getUrl: function() {
+        return SCOPE + "/cells/" + this.key + "/" +  this.tabId + "/public/full";
+      },
+
       /**
        * Performs a request to obtain the Google Sheet data
        *
        * @method go
        */
       go: function() {
-        var url = SCOPE + "/cells/" + this.key + "/" +  this.tabId + "/public/full";
+        // key is required, don't make request if missing
+        if (this.key === "") {
+          return;
+        }
 
-        this.$.sheet.url = url;
+        // apply url and params to the iron-ajax instance
+        this.$.sheet.url = this._getUrl();
+        this.$.sheet.params = this._getParams();
+
+        // make request
         this.$.sheet.generateRequest();
       }
 
