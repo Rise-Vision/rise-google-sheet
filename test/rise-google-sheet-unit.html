@@ -12,10 +12,13 @@
 </head>
 <body>
 
-<rise-google-sheet id="request"></rise-google-sheet>
+<rise-google-sheet id="request" key="abc123"></rise-google-sheet>
+
+<script src="data/sheet.js"></script>
+<script src="data/error.js"></script>
 
 <script>
-  suite("rise-google-sheet", function() {
+  suite("rise-google-sheet", function () {
     var clock, responded, listener,
       sheetRequest = document.querySelector("#request");
 
@@ -31,7 +34,61 @@
       responded = false;
     });
 
-    // TODO: tests to come
+    suite("_onSheetError", function () {
+      test("should fire rise-google-sheet-error if there is a problem with the Sheets request", function(done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.isString(response.detail, "detail is a String");
+          assert.equal(response.detail, errorData.error.message, "detail value is the error message");
+
+          sheetRequest.removeEventListener("rise-google-sheet-error", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-error", listener);
+        sheetRequest._onSheetError({}, errorData);
+        assert.isTrue(responded);
+        done();
+      });
+    });
+
+    suite("_onSheetResponse", function () {
+      test("should fire rise-google-sheet-response and provide an Array of cell objects", function(done) {
+        var resp = {
+            "response": _.clone(sheetData)
+          },
+          e = {
+            "stopPropagation": function () {}
+          };
+
+        listener = function(response) {
+          responded = true;
+
+          assert.property(response.detail, "cells", "detail.cells property exists");
+          assert.isArray(response.detail.cells, "detail.cells is an Array");
+          assert.deepEqual(response.detail.cells, resp.response.feed.entry, "detail.cells value is correct");
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-response", listener);
+        sheetRequest._onSheetResponse(e, resp);
+
+        assert.deepEqual(sheetRequest.cells, resp.response.feed.entry);
+        assert.isTrue(responded);
+        done();
+      });
+    });
+
+    suite("_prepareResponse", function() {
+      test("should return an Array of cell objects", function() {
+        var response = sheetRequest._prepareResponse(sheetData);
+
+        assert.property(response, "cells");
+        assert.isArray(response.cells);
+        assert.deepEqual(response.cells, sheetData.feed.entry);
+      });
+    });
 
   });
 </script>

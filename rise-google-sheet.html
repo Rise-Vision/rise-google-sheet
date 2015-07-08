@@ -1,4 +1,16 @@
 <link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+
+<dom-module id="rise-google-sheet">
+  <template>
+    <iron-ajax id="sheet"
+               params='{"alt": "json"}'
+               handle-as="json"
+               on-response="_onSheetResponse"
+               on-error="_onSheetError">
+    </iron-ajax>
+  </template>
+</dom-module>
 
 <script>
   (function() {
@@ -6,6 +18,8 @@
     /* jshint newcap: false */
 
     "use strict";
+
+    var SCOPE = "https://spreadsheets.google.com/feeds";
 
     Polymer({
       is: "rise-google-sheet",
@@ -24,7 +38,63 @@
        */
 
       properties: {
-        // TODO: to come
+        /**
+         * The key of the spreadsheet. This can be found in the URL when viewing
+         * the document in Google Docs (e.g. docs.google.com/spreadsheet/ccc?key=<KEY>).
+         */
+        key: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * Tab within a spreadsheet. For example, the first tab in a spreadsheet
+         * would be `tab-id="1"`.
+         */
+        tabId: {
+          type: Number,
+          value: 1
+        },
+
+        /**
+         * Returns a list of cell data.
+         */
+        cells: {
+          type: Array,
+          value: function() { return []; },
+          readOnly: true,
+          notify: true
+        }
+      },
+
+      _prepareResponse: function (resp) {
+        var response = {};
+
+        response.cells = resp.feed.entry;
+
+        // TODO: provide meta data (title, authors, etc)?
+
+        return response;
+      },
+
+      _onSheetError: function(e, err) {
+        this.fire("rise-google-sheet-error", err.error.message);
+      },
+
+      _onSheetResponse: function(e, resp) {
+        var responseData;
+
+        // in case there are other instances of rise-google-sheet
+        e.stopPropagation();
+
+        if (resp && resp.response) {
+          responseData = this._prepareResponse(resp.response);
+
+          // use setter method to apply cells value because this property is read only
+          this._setCells(responseData.cells);
+
+          this.fire("rise-google-sheet-response", responseData);
+        }
       },
 
       /**
@@ -33,7 +103,10 @@
        * @method go
        */
       go: function() {
-        // TODO: logic to come
+        var url = SCOPE + "/cells/" + this.key + "/" +  this.tabId + "/public/full";
+
+        this.$.sheet.url = url;
+        this.$.sheet.generateRequest();
       }
 
     });

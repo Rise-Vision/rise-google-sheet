@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>rise-google-sheet Demo</title>
+
+  <script src="../webcomponentsjs/webcomponents-lite.min.js"></script>
+  <link rel="import" href="rise-google-sheet.html">
+
+</head>
+<body unresolved>
+
+<rise-google-sheet id="googleSheet" key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I"></rise-google-sheet>
+
+<script>
+  (function () {
+    "use strict";
+
+    function webComponentsReady() {
+      window.removeEventListener("WebComponentsReady", webComponentsReady);
+
+      var googleSheet = document.getElementById("googleSheet");
+
+      googleSheet.addEventListener("rise-google-sheet-response", function (e) {
+        console.log(e.detail.cells);
+      });
+
+      googleSheet.addEventListener("rise-google-sheet-error", function (e) {
+        console.log(e.detail);
+      });
+
+      googleSheet.go();
+
+    }
+
+    window.addEventListener("WebComponentsReady", webComponentsReady);
+
+  })();
+</script>
+
+</body>
+</html>
