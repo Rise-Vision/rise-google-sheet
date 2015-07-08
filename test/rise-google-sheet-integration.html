@@ -38,6 +38,8 @@
       test("should return an Array of cell objects", function(done) {
         responseHandler = function(response) {
           assert.deepEqual(response.detail.cells, sheetData.feed.entry);
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
           done();
         };
 

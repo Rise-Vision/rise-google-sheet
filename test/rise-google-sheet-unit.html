@@ -176,6 +176,7 @@
 
       teardown(function() {
         sheetRequest.key = "";
+        sheetRequest._requestPending = false;
       });
 
       test("should not make call to generate request without a value for 'key'", function () {
@@ -198,6 +199,46 @@
 
         sheetRequest.$.sheet.generateRequest.restore();
       });
+
+      test("should not execute further request when there is one pending a response", function() {
+        requestSpy = sinon.spy(sheetRequest.$.sheet, "generateRequest");
+
+        sheetRequest.key = "abc123";
+        sheetRequest.go();
+        sheetRequest.go();
+        sheetRequest.go();
+
+        assert(requestSpy.calledOnce);
+
+        sheetRequest.$.sheet.generateRequest.restore();
+      });
+    });
+
+    suite("_startTimer", function() {
+      var timerSpy;
+
+      teardown(function() {
+        sheetRequest.refresh = 0;
+      });
+
+      test("should enforce a minimum refresh interval of 10 (seconds)", function() {
+        sheetRequest.refresh = 5;
+        sheetRequest._startTimer();
+        assert.equal(sheetRequest.refresh, 10);
+      });
+
+      test("should make a new request for data", function() {
+        timerSpy = sinon.spy(sheetRequest, "go");
+
+        sheetRequest.refresh = 30;
+        sheetRequest._startTimer();
+
+        clock.tick(30000);
+        assert(timerSpy.calledOnce);
+
+        sheetRequest.go.restore();
+      });
+
     });
 
   });
