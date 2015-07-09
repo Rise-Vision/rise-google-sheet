@@ -15,6 +15,7 @@
 <rise-google-sheet id="request" key="abc123"></rise-google-sheet>
 
 <script src="data/sheet.js"></script>
+<script src="data/error.js"></script>
 
 <script>
   suite("rise-google-sheet", function() {
@@ -24,7 +25,6 @@
     // Runs for every suite.
     suiteSetup(function() {
       server = sinon.fakeServer.create();
-      server.respondImmediately = true;
 
       clock = sinon.useFakeTimers();
     });
@@ -34,9 +34,16 @@
       clock.restore();
     });
 
+    setup(function() {
+      localStorage.removeItem("risesheet"); // clear localStorage
+    });
+
     suite("request data", function() {
-      test("should return an Array of cell objects", function(done) {
+      test("should return an Array of cell objects when server/API request responds successfully", function(done) {
         responseHandler = function(response) {
+
+          assert.property(response.detail, "cells", "detail.cells property exists");
+          assert.isArray(response.detail.cells, "detail.cells is an Array");
           assert.deepEqual(response.detail.cells, sheetData.feed.entry);
 
           sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
@@ -46,6 +53,46 @@
         sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
         server.respondWith([200, {}, JSON.stringify(sheetData)]);
         sheetRequest.go();
+        server.respond();
+      });
+
+      test("should return error when server/API request responds unsuccessful", function (done) {
+        responseHandler = function(response) {
+
+          assert.isString(response.detail, "detail is a String");
+          assert.equal(response.detail, errorData.error.message);
+
+          sheetRequest.removeEventListener("rise-google-sheet-error", responseHandler);
+          done();
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-error", responseHandler);
+        server.respondWith([400, {}, JSON.stringify(errorData)]);
+        sheetRequest.go();
+        server.respond();
+      });
+
+    });
+
+    suite("offline cached data", function() {
+      test("should return cached Array of cell objects when <iron-ajax> sets lastRequest.xhr.status to 0", function () {
+        responseHandler = function(response) {
+
+          assert.deepEqual(response.detail.cells, sheetData.feed.entry);
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
+          done();
+        };
+
+        // data will get cached
+        server.respondWith([200, {}, JSON.stringify(sheetData)]);
+        sheetRequest.go();
+        server.respond();
+
+        server.respondWith([400, {}, ""]);
+        sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
+        sheetRequest.go();
+        server.respond();
       });
     });
 

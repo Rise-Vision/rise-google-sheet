@@ -20,6 +20,16 @@
 
     var SCOPE = "https://spreadsheets.google.com/feeds";
 
+    var LOCAL_STORAGE_NAME = "risesheet";
+
+    function supportsLocalStorage() {
+      try {
+        return "localStorage" in window && window.localStorage !== null;
+      } catch (e) {
+        return false;
+      }
+    }
+
     Polymer({
       is: "rise-google-sheet",
 
@@ -108,6 +118,21 @@
 
       _requestPending: false,
 
+      _getCachedData: function () {
+        if (supportsLocalStorage()) {
+          // retrieve cached data and parse back
+          return JSON.parse(localStorage.getItem(LOCAL_STORAGE_NAME));
+        }
+
+        return null;
+      },
+
+      _setCachedData: function (data) {
+        if (supportsLocalStorage()) {
+          localStorage.setItem(LOCAL_STORAGE_NAME, JSON.stringify(data));
+        }
+      },
+
       _startTimer: function() {
         var refreshFn = this.go,
           self = this;
@@ -138,13 +163,54 @@
       },
 
       _onSheetError: function(e, err) {
+        // in case there are other instances of rise-google-sheet
+        e.stopPropagation();
+
         // reset the value of cells
         this._setCells([]);
+
+        // if cached data exists, remove it
+        if (this._getCachedData()) {
+          localStorage.removeItem(LOCAL_STORAGE_NAME);
+        }
 
         this.fire("rise-google-sheet-error", err.error.message);
 
         this._requestPending = false;
-        // not calling _startTimer(), can't distinguish between error to determine if refresh is appropriate
+        // not calling _startTimer(), can't distinguish between errors to determine if refresh is appropriate
+      },
+
+      _handleEmptyResponse: function (e) {
+        var cachedData;
+
+        // check xhr.status to be 0, <iron-ajax> treats no status (no internet connection) as successful
+        if (e.target.lastRequest && e.target.lastRequest.xhr.status === 0) {
+          cachedData = this._getCachedData();
+
+          /*
+           * NOTE:
+           * Unfortunately xhr.status is also 0 when incorrect tab id is used. If cached data exists,
+           * it will be provided even though tab id is incorrect.
+           */
+
+          if (cachedData) {
+            this._setCells(cachedData.cells);
+
+            this.fire("rise-google-sheet-response", cachedData);
+
+            this._requestPending = false;
+            this._startTimer();
+
+            return;
+          }
+        }
+
+        // no response and no cached data available, process this as an error
+        this._onSheetError(e, {
+          error: {
+            message: "Empty response and no cached data available."
+          }
+        });
       },
 
       _onSheetResponse: function(e, resp) {
@@ -156,6 +222,9 @@
         if (resp && resp.response) {
           responseData = this._prepareResponse(resp.response);
 
+          // cache the data if possible
+          this._setCachedData(responseData);
+
           // use setter method to apply cells value because this property is read only
           this._setCells(responseData.cells);
 
@@ -163,10 +232,17 @@
 
           this._requestPending = false;
           this._startTimer();
+
         }
         else {
-          this._requestPending = false;
-          this._startTimer();
+          /*
+           * This can happen here because <iron-ajax> sets xhr.status to 0 in certain circumstances.
+           * There is an open issue regarding the behaviour:
+           *
+           * https://github.com/PolymerElements/iron-ajax/issues/45
+           *
+           */
+          this._handleEmptyResponse(e);
         }
       },
 
@@ -222,7 +298,6 @@
         this.$.sheet.url = this._getUrl();
         this.$.sheet.params = this._getParams();
 
-        // make request
         this.$.sheet.generateRequest();
       }
 
