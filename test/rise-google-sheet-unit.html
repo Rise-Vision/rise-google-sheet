@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<rise-google-sheet id="request" key="abc123"></rise-google-sheet>
+<rise-google-sheet id="request"></rise-google-sheet>
 
 <script src="data/sheet.js"></script>
 <script src="data/error.js"></script>
@@ -87,6 +87,116 @@
         assert.property(response, "cells");
         assert.isArray(response.cells);
         assert.deepEqual(response.cells, sheetData.feed.entry);
+      });
+    });
+
+    suite("_getParams", function() {
+      var params,
+        standardParams = {
+          "alt": "json"
+        };
+
+      teardown(function() {
+        sheetRequest.minColumn = 0;
+        sheetRequest.maxColumn = 0;
+        sheetRequest.minRow = 0;
+        sheetRequest.maxRow = 0;
+      });
+
+      test("should return an object with 'alt' property only, no range properties", function () {
+        params = sheetRequest._getParams();
+
+        assert.property(params, "alt");
+        assert.isString(params.alt);
+        assert.deepEqual(params, standardParams);
+      });
+
+      test("should return an object that contains 'min-col' property", function () {
+        sheetRequest.minColumn = 2;
+
+        params = sheetRequest._getParams();
+
+        assert.property(params, "min-col");
+        assert.isNumber(params["min-col"]);
+        assert.equal(params["min-col"], 2);
+      });
+
+      test("should return an object that contains 'max-col' property", function () {
+        sheetRequest.maxColumn = 2;
+
+        params = sheetRequest._getParams();
+
+        assert.property(params, "max-col");
+        assert.isNumber(params["max-col"]);
+        assert.equal(params["max-col"], 2);
+      });
+
+      test("should return an object that contains 'min-row' property", function () {
+        sheetRequest.minRow = 2;
+
+        params = sheetRequest._getParams();
+
+        assert.property(params, "min-row");
+        assert.isNumber(params["min-row"]);
+        assert.equal(params["min-row"], 2);
+      });
+
+      test("should return an object that contains 'max-row' property", function () {
+        sheetRequest.maxRow = 2;
+
+        params = sheetRequest._getParams();
+
+        assert.property(params, "max-row");
+        assert.isNumber(params["max-row"]);
+        assert.equal(params["max-row"], 2);
+      });
+    });
+
+    suite("_getUrl", function () {
+      var url;
+
+      teardown(function() {
+        sheetRequest.key = "";
+        sheetRequest.tabId = 1;
+      });
+
+      test("should return correct URL to use for generating a request to Sheets API", function () {
+        sheetRequest.key = "abc123";
+        sheetRequest.tabId = 2;
+
+        url = sheetRequest._getUrl();
+
+        assert.isString(url);
+        assert.equal(url, "https://spreadsheets.google.com/feeds/cells/abc123/2/public/full");
+      });
+    });
+
+    suite("go", function () {
+      var requestSpy;
+
+      teardown(function() {
+        sheetRequest.key = "";
+      });
+
+      test("should not make call to generate request without a value for 'key'", function () {
+        requestSpy = sinon.spy(sheetRequest.$.sheet, "generateRequest");
+
+        sheetRequest.go();
+
+        assert.equal(requestSpy.callCount, 0);
+
+        sheetRequest.$.sheet.generateRequest.restore();
+      });
+
+      test("should generate request to Sheets API", function () {
+        requestSpy = sinon.spy(sheetRequest.$.sheet, "generateRequest");
+
+        sheetRequest.key = "abc123";
+        sheetRequest.go();
+
+        assert(requestSpy.calledOnce);
+
+        sheetRequest.$.sheet.generateRequest.restore();
       });
     });
 
