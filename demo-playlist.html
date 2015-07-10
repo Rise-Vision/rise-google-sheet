@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
+  <title>rise-google-sheet Playlist Content Demo</title>
+
+  <script src="../webcomponentsjs/webcomponents-lite.min.js"></script>
+
+  <!-- Handy Table styling -->
+  <link rel="stylesheet" href="../pure/tables-min.css">
+
+  <link rel="import" href="../rise-page/rise-page.html">
+  <link rel="import" href="../rise-playlist/rise-playlist.html">
+  <link rel="import" href="../rise-playlist-item/rise-playlist-item.html">
+  <link rel="import" href="rise-google-sheet.html">
+
+</head>
+<body unresolved>
+
+<rise-page display-id="VGZUDDWYAZHY">
+
+  <rise-playlist>
+    <rise-playlist-item>
+      <rise-google-sheet id="googleSheet"
+                         key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I">
+      </rise-google-sheet>
+      <!-- Example HTML structure -->
+      <table id="sheetTable" class="pure-table pure-table-bordered">
+        <thead>
+        <tr>
+          <!-- dynamically add column header titles -->
+        </tr>
+        </thead>
+        <tbody>
+        <!-- dynamically populate table cells -->
+        </tbody>
+      </table>
+    </rise-playlist-item>
+  </rise-playlist>
+
+</rise-page>
+
+<!-- Importing javascript which is the logic in building and managing the Google Sheet content -->
+<script type="text/javascript" src="demo-playlist.js"></script>
+
+<script>
+  /* global DemoPlaylist */
+
+  (function () {
+    "use strict";
+
+    function webComponentsReady() {
+      window.removeEventListener("WebComponentsReady", webComponentsReady);
+
+      // new instance of DemoPlaylist object
+      var demo = new DemoPlaylist();
+
+      // initialize the content
+      demo.init();
+    }
+
+    window.addEventListener("WebComponentsReady", webComponentsReady);
+
+  })();
+</script>
+
+</body>
+</html>
