@@ -32,41 +32,47 @@
 
     setup(function() {
       responded = false;
+      localStorage.removeItem("risesheet"); // clear localStorage
     });
 
     suite("_onSheetError", function () {
-      test("should fire rise-google-sheet-error if there is a problem with the Sheets request", function(done) {
+      var e = {
+        "stopPropagation": function () {}
+      };
+
+      test("should fire rise-google-sheet-error when handling <iron-ajax> request error ", function(done) {
         listener = function(response) {
           responded = true;
-
-          assert.isString(response.detail, "detail is a String");
-          assert.equal(response.detail, errorData.error.message, "detail value is the error message");
 
           sheetRequest.removeEventListener("rise-google-sheet-error", listener);
         };
 
         sheetRequest.addEventListener("rise-google-sheet-error", listener);
-        sheetRequest._onSheetError({}, errorData);
+        sheetRequest._onSheetError(e, errorData);
         assert.isTrue(responded);
         done();
       });
     });
 
     suite("_onSheetResponse", function () {
-      test("should fire rise-google-sheet-response and provide an Array of cell objects", function(done) {
-        var resp = {
-            "response": _.clone(sheetData)
-          },
-          e = {
-            "stopPropagation": function () {}
-          };
+      var resp = {
+          "response": _.clone(sheetData)
+        },
+        e = {
+          "stopPropagation": function () {}
+        };
+
+      teardown(function() {
+        sheetRequest._setCells([]);
+      });
+
+      test("should fire rise-google-sheet-response, set cells property, and call _setCachedData()", function(done) {
+        var setCachedDataStub = sinon.stub(sheetRequest, "_setCachedData", function () {});
 
         listener = function(response) {
           responded = true;
 
           assert.property(response.detail, "cells", "detail.cells property exists");
-          assert.isArray(response.detail.cells, "detail.cells is an Array");
-          assert.deepEqual(response.detail.cells, resp.response.feed.entry, "detail.cells value is correct");
 
           sheetRequest.removeEventListener("rise-google-sheet-response", listener);
         };
@@ -74,10 +80,36 @@
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
         sheetRequest._onSheetResponse(e, resp);
 
-        assert.deepEqual(sheetRequest.cells, resp.response.feed.entry);
+        assert(setCachedDataStub.calledOnce, "call to _setCachedData is made");
+        assert.deepEqual(sheetRequest.cells, resp.response.feed.entry, "cells property is set correctly");
         assert.isTrue(responded);
+
+        sheetRequest._setCachedData.restore();
+
         done();
       });
+
+      test("should not fire rise-google-sheet-response and make a call to _handleEmptyResponse()", function(done) {
+        var emptyResponseStub = sinon.stub(sheetRequest, "_handleEmptyResponse", function (){});
+
+        listener = function(response) {
+          responded = true;
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-response", listener);
+        sheetRequest._onSheetResponse(e);
+
+        assert(emptyResponseStub.calledOnce);
+        assert(emptyResponseStub.calledWith(e));
+        assert.isFalse(responded);
+
+        sheetRequest._handleEmptyResponse.restore();
+
+        done();
+      });
+
     });
 
     suite("_prepareResponse", function() {
@@ -172,51 +204,42 @@
     });
 
     suite("go", function () {
-      var requestSpy;
+      var requestStub;
+
+      setup(function() {
+        requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
+      });
 
       teardown(function() {
         sheetRequest.key = "";
         sheetRequest._requestPending = false;
+        sheetRequest.$.sheet.generateRequest.restore();
       });
 
       test("should not make call to generate request without a value for 'key'", function () {
-        requestSpy = sinon.spy(sheetRequest.$.sheet, "generateRequest");
-
         sheetRequest.go();
 
-        assert.equal(requestSpy.callCount, 0);
-
-        sheetRequest.$.sheet.generateRequest.restore();
+        assert.equal(requestStub.callCount, 0);
       });
 
       test("should generate request to Sheets API", function () {
-        requestSpy = sinon.spy(sheetRequest.$.sheet, "generateRequest");
-
         sheetRequest.key = "abc123";
         sheetRequest.go();
 
-        assert(requestSpy.calledOnce);
-
-        sheetRequest.$.sheet.generateRequest.restore();
+        assert(requestStub.calledOnce);
       });
 
       test("should not execute further request when there is one pending a response", function() {
-        requestSpy = sinon.spy(sheetRequest.$.sheet, "generateRequest");
-
         sheetRequest.key = "abc123";
         sheetRequest.go();
         sheetRequest.go();
         sheetRequest.go();
 
-        assert(requestSpy.calledOnce);
-
-        sheetRequest.$.sheet.generateRequest.restore();
+        assert(requestStub.calledOnce);
       });
     });
 
     suite("_startTimer", function() {
-      var timerSpy;
-
       teardown(function() {
         sheetRequest.refresh = 0;
       });
@@ -228,15 +251,70 @@
       });
 
       test("should make a new request for data", function() {
-        timerSpy = sinon.spy(sheetRequest, "go");
+        var timerStub = sinon.stub(sheetRequest, "go", function () {});
 
         sheetRequest.refresh = 30;
         sheetRequest._startTimer();
 
         clock.tick(30000);
-        assert(timerSpy.calledOnce);
+        assert(timerStub.calledOnce);
 
         sheetRequest.go.restore();
+      });
+
+    });
+
+    suite("_handleEmptyResponse", function () {
+      teardown(function() {
+        sheetRequest._setCells([]);
+      });
+
+      test("should fire rise-google-sheet-response when <iron-ajax> lastRequest.xhr.status is 0", function (done) {
+        var e = {
+            "stopPropagation": function () {},
+            "target": { "lastRequest": { "xhr": { "status": 0 } }
+            }
+          };
+
+        listener = function(response) {
+          responded = true;
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+        };
+
+        sinon.stub(sheetRequest, "_getCachedData", function () {
+          return sheetData;
+        });
+
+        sheetRequest.addEventListener("rise-google-sheet-response", listener);
+        sheetRequest._handleEmptyResponse(e);
+
+        assert.isTrue(responded);
+
+        sheetRequest._getCachedData.restore();
+
+        done();
+      });
+
+      test("should fire rise-google-sheet-error when '<iron-ajax>' lastRequest.xhr.status is not 0", function (done) {
+        var e = {
+          "stopPropagation": function () {},
+          "target": { "lastRequest": { "xhr": { "status": 400 } }
+          }
+        };
+
+        listener = function(response) {
+          responded = true;
+
+          sheetRequest.removeEventListener("rise-google-sheet-error", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-error", listener);
+        sheetRequest._handleEmptyResponse(e);
+
+        assert.isTrue(responded);
+
+        done();
       });
 
     });
