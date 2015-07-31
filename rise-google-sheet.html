@@ -1,6 +1,49 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-ajax/iron-ajax.html">
 
+<!--
+`rise-google-sheet` is a web component that retrieves data from a Google Sheet specified by key.
+It uses the cell-based feed feature of the [Google Sheets API](https://developers.google.com/google-apps/spreadsheets/)
+where each entry represents a single cell.
+
+The `key` attribute is required which is to identify the Google Sheet you want to target.
+A spreadsheet's key can be found in the URL when viewing it in Google Docs
+(e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
+
+Optionally, the `tab-id` attribute allows for specifying a particular worksheet tab in the spreadsheet.
+For example, the first tab would be `tab-id="1"`.
+
+The specified feed is periodically retrieved if the `refresh` attribute is set, although a minimum refresh
+time of 10 seconds is enforced.
+
+#### Example Usage
+
+    <rise-google-sheet key="abc123" tab-id="2" min-row="2" refresh="30"></rise-google-sheet>
+
+    <script>
+      var sheet = document.querySelector('rise-google-sheet');
+
+      // Respond to events it fires.
+      sheet.addEventListener('rise-google-sheet-response', function(e) {
+        if (e.detail && e.detail.cells) {
+          console.log(e.detail.cells); // Array of cell objects
+        }
+      });
+
+      sheet.go(); // Executes a request.
+    </script>
+
+#### Range
+
+`rise-google-sheet` allows for fetching specific rows or columns from a worksheet by providing several
+attributes to specify the range of cells you want to retrieve.
+
+For example, to retrieve cells for every row after the first row, and only in the fourth column:
+
+    <rise-google-sheet key="abc123" min-row="2" min-column="4" max-column="4"></rise-google-sheet>
+
+@demo
+-->
 <dom-module id="rise-google-sheet">
   <template>
     <iron-ajax id="sheet"
@@ -33,19 +76,6 @@
 
     Polymer({
       is: "rise-google-sheet",
-
-      /**
-       * Fired when a response is received.
-       *
-       * @param {object} detail.data The data returned by the Google Sheets API
-       * @event rise-google-sheet-response
-       */
-
-      /**
-       * Fired when an error is received.
-       *
-       * @event rise-google-sheet-error
-       */
 
       properties: {
         /**
@@ -118,6 +148,22 @@
       },
 
       _requestPending: false,
+
+      // Element Behavior
+
+      /**
+       * Fired when a response is received.
+       *
+       * @param {Object} detail
+       * @param {Object} detail.data The data returned by the Google Sheets API
+       * @event rise-google-sheet-response
+       */
+
+      /**
+       * Fired when an error is received.
+       *
+       * @event rise-google-sheet-error
+       */
 
       _getCachedData: function () {
         if (supportsLocalStorage()) {
@@ -284,7 +330,6 @@
       /**
        * Performs a request to obtain the Google Sheet data
        *
-       * @method go
        */
       go: function() {
         // key is required, don't make request if missing 'key' or if a previous request is pending
