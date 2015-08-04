@@ -12,7 +12,7 @@
     "google-sheets"
   ],
   "license": "GPLv3",
-  "homepage": "https://github.com/Rise-Vision/web-component-rise-google-sheet",
+  "homepage": "https://github.com/Rise-Vision/rise-google-sheet",
   "ignore": [
     "**/.*",
     "node_modules",
@@ -24,10 +24,11 @@
     "underscore": "~1.8.2"
   },
   "devDependencies": {
+    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
     "pure": "^0.6.0",
     "rise-page": "https://github.com/Rise-Vision/web-component-rise-page.git",
     "rise-playlist": "https://github.com/Rise-Vision/web-component-rise-playlist.git",
     "rise-playlist-item": "https://github.com/Rise-Vision/web-component-rise-playlist-item.git",
-    "web-component-tester": "~3.1.3"
+    "web-component-tester": "*"
   }
 }
