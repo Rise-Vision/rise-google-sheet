@@ -1,4 +1,4 @@
-# Google Sheet Web Component
+# Google Sheet Web Component [![Circle CI](https://circleci.com/gh/Rise-Vision/rise-google-sheet/tree/master.svg?style=svg)](https://circleci.com/gh/Rise-Vision/rise-google-sheet/tree/master)
 
 ## Introduction
 
@@ -65,28 +65,8 @@ Next, construct your HTML page. You should include `webcomponents-lite.min.js` b
 
 For more detail on the format of cell objects see ["Working with cell-based feeds"](https://developers.google.com/google-apps/spreadsheets/#working_with_cell-based_feeds_1).
 
-### Attributes
-| Attribute              | Type                                                                            | Default          |
-| ---------------------- | ------------------------------------------------------------------------------- |:----------------:|
-| `key` (required) | `<string>` The key of the spreadsheet. This can be found in the URL when viewing the document in Google Docs (e.g. docs.google.com/spreadsheets/d/<KEY>).                                         | `''`             |
-| `tab-id`              | `<number>` Tab within a spreadsheet. For example, the first tab in a spreadsheet would be tab-id="1". | `1` |
-| `refresh`              | `<number>` The number of seconds before the data will be refreshed. The minimum refresh time is 10 seconds. | `0` (no refresh) |
-| `min-column`              | `<number>` The starting column of the worksheet. For example, to only include data starting at the 2nd column, use min-column="2". | `0` (no minimum) |
-| `max-column`              | `<number>` The last column of the worksheet. For example, to only include data up to and including the 3rd column, use max-column="3". | `0` (no maximum) |
-| `min-row`              | `<number>` The starting row of the worksheet. For example, to only include data starting at the 2nd row, use min-row="2". | `0` (no minimum) |
-| `max-row`              | `<number>` The last row of the worksheet. For example, to only include data up to and including the 3rd row, use max-row="3". | `0` (no minimum) |
-
-### Events
-| Event                   | Description                        |
-| ----------------------- | -----------------------------------|
-| `rise-google-sheet-response` | Fired when a response is received. |
-| `rise-google-sheet-error`    | Fired when an error is received.   |
-
-
-### Methods
-| Method | Description                                    |
-| ------ | ---------------------------------------------- |
-| `go`   | Makes a request to fetch the data from the Google Sheet with the specified key. |
+## Documentation
+For further documentation on `rise-google-sheet` attributes, methods, usage, and a comprehensive demo, please see [here](http://rise-vision.github.io/rise-google-sheet).
 
 ## Built With
 - [Polymer](https://www.polymer-project.org/)
@@ -129,7 +109,7 @@ To access the demo locally, run the following command in Terminal: `polyserve`
 Now in your browser, navigate to: 
 
 ```
-localhost:8080/components/rise-google-sheet/demo.html
+localhost:8080/components/rise-google-sheet/demo/index.html
 ``` 
 
 ### Testing
@@ -153,8 +133,6 @@ localhost:8080/components/rise-google-sheet/test/index.html
 
 ### Deployment
 Once you are satisifed with your changes, deploy the contents of the `bower_components` folder to a folder on your server and also create a `rise-google-sheet` folder within your folder and upload `rise-google-sheet.html` to it. You can then use the web component by following the *Usage* instructions.
-
-Please note, if you are trying to view the `demo.html` on a remote server you will need to change the `href` values of the imports within the `<head>` of the document to point to your folder on your server.
 
 ## Submitting Issues
 If you encounter problems or find defects we really want to hear about them. If you could take the time to add them as issues to this Repository it would be most appreciated. When reporting issues, please use the following format where applicable:
