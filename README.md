@@ -2,15 +2,11 @@
 
 ## Introduction
 
-`rise-google-sheet` is a web component that retrieves data from a Google Sheet specified by key. It uses the cell-based feed feature of the [Google Sheets API](https://developers.google.com/google-apps/spreadsheets/) where each entry represents a single cell.
+`rise-google-sheet` is a Polymer Web Component that works with [Rise Vision](https://www.risevision.com/), the digital signage management application for [Web Designers](http://risevision.com/web-designers). It retrieves data from a Google Sheet specified by key. It uses the cell-based feed feature of the [Google Sheets API](https://developers.google.com/google-apps/spreadsheets/) where each entry represents a single cell.
 
 The `key` attribute is required which is to identify the Google Sheet you want to target. A spreadsheet's key can be found in the URL when viewing it in Google Docs (e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
 
 The specified feed is periodically retrieved if the `refresh` attribute is set, although a minimum refresh time of 10 seconds is enforced.
-
-`rise-google-sheet` works in conjunction with [Rise Vision](http://www.risevision.com), the [digital signage management application](http://rva.risevision.com/) that runs on [Google Cloud](https://cloud.google.com).
-
-At this time Chrome is the only browser that this project and Rise Vision supports.
 
 ### Range
 `rise-google-sheet` allows for fetching specific rows or columns from a worksheet by providing several attributes to specify the range of cells you want to retrieve.
