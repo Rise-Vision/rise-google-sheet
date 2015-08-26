@@ -20,7 +20,7 @@ For example, to retrieve cells for every row after the first row, and only in th
 ## Usage
 To use the Google Sheet Web Component, you should first install it using Bower:
 ```
-bower install https://github.com/Rise-Vision/web-component-rise-google-sheet.git
+bower install https://github.com/Rise-Vision/rise-google-sheet.git
 ```
 
 Next, construct your HTML page. You should include `webcomponents-lite.min.js` before any code that touches the DOM, and load the web component using an HTML Import. For example:
