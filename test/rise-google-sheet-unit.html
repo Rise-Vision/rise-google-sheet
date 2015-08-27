@@ -16,6 +16,7 @@
 
 <script src="data/sheet.js"></script>
 <script src="data/error.js"></script>
+<script src="/node_modules/widget-tester/mocks/localStorage-mock.js"></script>
 
 <script>
   suite("rise-google-sheet", function () {
@@ -40,6 +41,11 @@
         "stopPropagation": function () {}
       };
 
+      teardown(function () {
+        window.localStorageError = false;
+        localStorage.removeItem("risesheet");
+      });
+
       test("should fire rise-google-sheet-error when handling <iron-ajax> request error ", function(done) {
         listener = function(response) {
           responded = true;
@@ -51,6 +57,28 @@
         sheetRequest._onSheetError(e, errorData);
         assert.isTrue(responded);
         done();
+      });
+
+      test("should remove item from localStorage if it exists", function () {
+        localStorage.setItem("risesheet", JSON.stringify({cells: sheetData.feed.entry}));
+
+        sheetRequest._onSheetError(e, errorData);
+
+        assert.isNull(localStorage.getItem("risesheet"));
+      });
+
+      test("should catch error thrown by localStorage.removeItem and log a warning in console", function () {
+        var consoleSpy = sinon.spy(console, "warn");
+
+        localStorage.setItem("risesheet", JSON.stringify({cells: sheetData.feed.entry}));
+
+        // force an error from localStorage.removeItem()
+        window.localStorageError = true;
+
+        sheetRequest._onSheetError(e, errorData);
+
+        assert(consoleSpy.calledOnce);
+        console.warn.restore();
       });
     });
 
@@ -64,11 +92,10 @@
 
       teardown(function() {
         sheetRequest._setCells([]);
+        localStorage.removeItem("risesheet");
       });
 
-      test("should fire rise-google-sheet-response, set cells property, and call _setCachedData()", function(done) {
-        var setCachedDataStub = sinon.stub(sheetRequest, "_setCachedData", function () {});
-
+      test("should fire rise-google-sheet-response, set cells property, and save to localStorage", function(done) {
         listener = function(response) {
           responded = true;
 
@@ -80,11 +107,10 @@
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
         sheetRequest._onSheetResponse(e, resp);
 
-        assert(setCachedDataStub.calledOnce, "call to _setCachedData is made");
         assert.deepEqual(sheetRequest.cells, resp.response.feed.entry, "cells property is set correctly");
+        assert.deepEqual(JSON.parse(localStorage.getItem("risesheet")), {cells: sheetData.feed.entry},
+          "localStorage saved data correctly");
         assert.isTrue(responded);
-
-        sheetRequest._setCachedData.restore();
 
         done();
       });
@@ -264,9 +290,61 @@
 
     });
 
+    suite("_setCachedData", function () {
+
+      teardown(function () {
+        window.localStorageError = false;
+        localStorage.removeItem("risesheet");
+      });
+
+      test("should catch error thrown by localStorage.setItem and log a warning in console", function () {
+        var warnSpy = sinon.spy(console, "warn");
+
+        // force an error from localStorage.setItem()
+        window.localStorageError = true;
+
+        sheetRequest._setCachedData({cells: sheetData.feed.entry});
+
+        assert(warnSpy.calledOnce);
+        console.warn.restore();
+      });
+
+      test("should ensure data passed in localStorage.setItem() is stringified", function () {
+        sheetRequest._setCachedData({cells: sheetData.feed.entry});
+
+        var value = localStorage.getItem("risesheet");
+
+        assert.isString(value);
+      });
+
+    });
+
+    suite("_getCachedData", function () {
+      var value;
+
+      teardown(function () {
+        localStorage.removeItem("risesheet");
+      });
+
+      test("Should return null when no cached data exists", function () {
+        value = sheetRequest._getCachedData();
+
+        assert.isNull(value);
+      });
+
+      test("Should ensure value returned has been parsed as JSON", function () {
+        localStorage.setItem("risesheet", JSON.stringify({cells: sheetData.feed.entry}));
+
+        value = sheetRequest._getCachedData();
+
+        assert.isObject(value);
+      });
+    });
+
     suite("_handleEmptyResponse", function () {
       teardown(function() {
         sheetRequest._setCells([]);
+        localStorage.removeItem("risesheet");
       });
 
       test("should fire rise-google-sheet-response when <iron-ajax> lastRequest.xhr.status is 0", function (done) {
@@ -282,16 +360,13 @@
           sheetRequest.removeEventListener("rise-google-sheet-response", listener);
         };
 
-        sinon.stub(sheetRequest, "_getCachedData", function () {
-          return sheetData;
-        });
+        // ensure cached data exists
+        localStorage.setItem("risesheet", JSON.stringify({cells:sheetData.feed.entry}));
 
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
         sheetRequest._handleEmptyResponse(e);
 
         assert.isTrue(responded);
-
-        sheetRequest._getCachedData.restore();
 
         done();
       });
