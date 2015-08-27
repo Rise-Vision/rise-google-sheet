@@ -176,7 +176,11 @@ For example, to retrieve cells for every row after the first row, and only in th
 
       _setCachedData: function (data) {
         if (supportsLocalStorage()) {
-          localStorage.setItem(LOCAL_STORAGE_NAME, JSON.stringify(data));
+          try {
+            localStorage.setItem(LOCAL_STORAGE_NAME, JSON.stringify(data));
+          } catch(e) {
+            console.warn(e.message);
+          }
         }
       },
 
@@ -218,7 +222,11 @@ For example, to retrieve cells for every row after the first row, and only in th
 
         // if cached data exists, remove it
         if (this._getCachedData()) {
-          localStorage.removeItem(LOCAL_STORAGE_NAME);
+          try {
+            localStorage.removeItem(LOCAL_STORAGE_NAME);
+          } catch (ex) {
+            console.warn(ex.message);
+          }
         }
 
         this.fire("rise-google-sheet-error", err.error.message);
