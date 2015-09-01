@@ -155,18 +155,29 @@
         };
 
       teardown(function() {
+        sheetRequest.returnEmpty = false;
         sheetRequest.minColumn = 0;
         sheetRequest.maxColumn = 0;
         sheetRequest.minRow = 0;
         sheetRequest.maxRow = 0;
       });
 
-      test("should return an object with 'alt' property only, no range properties", function () {
+      test("should return an object with 'alt' property only", function () {
         params = sheetRequest._getParams();
 
         assert.property(params, "alt");
         assert.isString(params.alt);
         assert.deepEqual(params, standardParams);
+      });
+
+      test("should return an object that contains 'return-empty` property", function () {
+        sheetRequest.returnEmpty = true;
+
+        params = sheetRequest._getParams();
+
+        assert.property(params, "return-empty");
+        assert.isBoolean(params["return-empty"]);
+        assert.isTrue(params["return-empty"]);
       });
 
       test("should return an object that contains 'min-col' property", function () {
@@ -239,6 +250,11 @@
       teardown(function() {
         sheetRequest.key = "";
         sheetRequest._requestPending = false;
+        sheetRequest.minRow = 0;
+        sheetRequest.maxRow = 0;
+        sheetRequest.minColumn = 0;
+        sheetRequest.maxColumn = 0;
+        sheetRequest.returnEmpty = false;
         sheetRequest.$.sheet.generateRequest.restore();
       });
 
@@ -246,6 +262,34 @@
         sheetRequest.go();
 
         assert.equal(requestStub.callCount, 0);
+      });
+
+      test("should ensure the correct url is provided in request to Sheets API", function () {
+        sheetRequest.key = "abc123";
+        sheetRequest.tabId = 2;
+        sheetRequest.go();
+
+        assert.equal(sheetRequest.$.sheet.url, "https://spreadsheets.google.com/feeds/cells/abc123/2/public/full");
+      });
+
+      test("should ensure all required and optional params are included in request to Sheets API", function () {
+        sheetRequest.key = "abc123";
+        sheetRequest.minRow = 2;
+        sheetRequest.maxRow = 2;
+        sheetRequest.minColumn = 2;
+        sheetRequest.maxColumn = 2;
+        sheetRequest.returnEmpty = true;
+
+        sheetRequest.go();
+
+        assert.deepEqual(sheetRequest.$.sheet.params, {
+          "alt": "json",
+          "return-empty": true,
+          "min-col": 2,
+          "max-col": 2,
+          "min-row": 2,
+          "max-row": 2
+        });
       });
 
       test("should generate request to Sheets API", function () {
