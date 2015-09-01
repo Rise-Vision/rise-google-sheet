@@ -6,6 +6,8 @@
 
 The `key` attribute is required which is to identify the Google Sheet you want to target. A spreadsheet's key can be found in the URL when viewing it in Google Docs (e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
 
+Optionally, the `tab-id` attribute allows for specifying a particular worksheet tab in the spreadsheet. For example, the first tab would be `tab-id="1"`.
+
 The specified feed is periodically retrieved if the `refresh` attribute is set, although a minimum refresh time of 10 seconds is enforced.
 
 ### Range
@@ -15,6 +17,17 @@ For example, to retrieve cells for every row after the first row, and only in th
 
 ```
 <rise-google-sheet key="abc123" min-row="2" min-column="4" max-column="4"></rise-google-sheet>
+```
+
+### Empty cells
+Optionally, the `return-empty` attribute allows for retrieving all cell data in a worksheet including empty cells. This is helpful if perhaps you want to visualize a table with the data and it's important that empty cells are included in the response to accurately populate the table with the data. 
+
+Please note that using `return-empty` will return all empty cells, including the excess columns and rows in your worksheet. If this is not desired then you can workaround this by deleting the excess columns and rows from your worksheet. Alternatively, use the range attributes to specify exactly which cells are required.
+
+For example, to retrieve cells for columns 1-5 and rows 2-10 **and** include empty cells:
+
+```
+<rise-google-sheet key="abc123" max-column="5" min-row="2" max-row="10" return-empty="true"></rise-google-sheet>
 ```
 
 ## Usage
