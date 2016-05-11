@@ -78,7 +78,7 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
 
     var SCOPE = "https://spreadsheets.google.com/feeds";
 
-    var LOCAL_STORAGE_NAME = "risesheet";
+    var LOCAL_STORAGE_BASE_NAME = "risesheet";
 
     function supportsLocalStorage() {
       try {
@@ -187,10 +187,14 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
        * @event rise-google-sheet-error
        */
 
+      _getLocalStorageKey: function () {
+        return LOCAL_STORAGE_BASE_NAME + "_" + this.key;
+      },
+
       _getCachedData: function () {
         if (supportsLocalStorage()) {
           // retrieve cached data and parse back
-          return JSON.parse(localStorage.getItem(LOCAL_STORAGE_NAME));
+          return JSON.parse(localStorage.getItem(this._getLocalStorageKey()));
         }
 
         return null;
@@ -199,7 +203,7 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
       _setCachedData: function (data) {
         if (supportsLocalStorage()) {
           try {
-            localStorage.setItem(LOCAL_STORAGE_NAME, JSON.stringify(data));
+            localStorage.setItem(this._getLocalStorageKey(), JSON.stringify(data));
           } catch(e) {
             console.warn(e.message);
           }
@@ -245,7 +249,7 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
         // if cached data exists, remove it
         if (this._getCachedData()) {
           try {
-            localStorage.removeItem(LOCAL_STORAGE_NAME);
+            localStorage.removeItem(this._getLocalStorageKey());
           } catch (ex) {
             console.warn(ex.message);
           }
