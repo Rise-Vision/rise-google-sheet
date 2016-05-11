@@ -12,11 +12,11 @@
 </head>
 <body>
 
-<rise-google-sheet id="request"></rise-google-sheet>
+<rise-google-sheet id="request" key="abc123"></rise-google-sheet>
 
 <script src="data/sheet.js"></script>
 <script src="data/error.js"></script>
-<script src="/node_modules/widget-tester/mocks/localStorage-mock.js"></script>
+<script src="../node_modules/widget-tester/mocks/localStorage-mock.js"></script>
 
 <script>
   suite("rise-google-sheet", function () {
@@ -33,7 +33,15 @@
 
     setup(function() {
       responded = false;
-      localStorage.removeItem("risesheet"); // clear localStorage
+      localStorage.removeItem("risesheet_" + sheetRequest.key); // clear localStorage
+    });
+
+    suite("_getLocalStorageKey", function () {
+
+      test("should return correct local storage key using unique sheet key", function () {
+        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123");
+      });
+
     });
 
     suite("_onSheetError", function () {
@@ -43,7 +51,7 @@
 
       teardown(function () {
         window.localStorageError = false;
-        localStorage.removeItem("risesheet");
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
       test("should fire rise-google-sheet-error when handling <iron-ajax> request error ", function(done) {
@@ -60,17 +68,17 @@
       });
 
       test("should remove item from localStorage if it exists", function () {
-        localStorage.setItem("risesheet", JSON.stringify({cells: sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells: sheetData.feed.entry}));
 
         sheetRequest._onSheetError(e, errorData);
 
-        assert.isNull(localStorage.getItem("risesheet"));
+        assert.isNull(localStorage.getItem(sheetRequest._getLocalStorageKey()));
       });
 
       test("should catch error thrown by localStorage.removeItem and log a warning in console", function () {
         var consoleSpy = sinon.spy(console, "warn");
 
-        localStorage.setItem("risesheet", JSON.stringify({cells: sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells: sheetData.feed.entry}));
 
         // force an error from localStorage.removeItem()
         window.localStorageError = true;
@@ -92,7 +100,7 @@
 
       teardown(function() {
         sheetRequest._setCells([]);
-        localStorage.removeItem("risesheet");
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
       test("should fire rise-google-sheet-response, set cells property, and save to localStorage", function(done) {
@@ -108,7 +116,7 @@
         sheetRequest._onSheetResponse(e, resp);
 
         assert.deepEqual(sheetRequest.cells, resp.response.feed.entry, "cells property is set correctly");
-        assert.deepEqual(JSON.parse(localStorage.getItem("risesheet")), {cells: sheetData.feed.entry},
+        assert.deepEqual(JSON.parse(localStorage.getItem(sheetRequest._getLocalStorageKey())), {cells: sheetData.feed.entry},
           "localStorage saved data correctly");
         assert.isTrue(responded);
 
@@ -338,7 +346,7 @@
 
       teardown(function () {
         window.localStorageError = false;
-        localStorage.removeItem("risesheet");
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
       test("should catch error thrown by localStorage.setItem and log a warning in console", function () {
@@ -356,7 +364,7 @@
       test("should ensure data passed in localStorage.setItem() is stringified", function () {
         sheetRequest._setCachedData({cells: sheetData.feed.entry});
 
-        var value = localStorage.getItem("risesheet");
+        var value = localStorage.getItem(sheetRequest._getLocalStorageKey());
 
         assert.isString(value);
       });
@@ -367,7 +375,7 @@
       var value;
 
       teardown(function () {
-        localStorage.removeItem("risesheet");
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
       test("Should return null when no cached data exists", function () {
@@ -377,7 +385,7 @@
       });
 
       test("Should ensure value returned has been parsed as JSON", function () {
-        localStorage.setItem("risesheet", JSON.stringify({cells: sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells: sheetData.feed.entry}));
 
         value = sheetRequest._getCachedData();
 
@@ -388,7 +396,7 @@
     suite("_handleEmptyResponse", function () {
       teardown(function() {
         sheetRequest._setCells([]);
-        localStorage.removeItem("risesheet");
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
       test("should fire rise-google-sheet-response when <iron-ajax> lastRequest.xhr.status is 0", function (done) {
@@ -405,7 +413,7 @@
         };
 
         // ensure cached data exists
-        localStorage.setItem("risesheet", JSON.stringify({cells:sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells:sheetData.feed.entry}));
 
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
         sheetRequest._handleEmptyResponse(e);

@@ -75,7 +75,7 @@
     });
 
     suite("offline cached data", function() {
-      test("should return cached Array of cell objects when <iron-ajax> sets lastRequest.xhr.status to 0", function () {
+      test("should return cached Array of cell objects when <iron-ajax> sets lastRequest.xhr.status to 0", function (done) {
         responseHandler = function(response) {
 
           assert.deepEqual(response.detail.cells, sheetData.feed.entry);

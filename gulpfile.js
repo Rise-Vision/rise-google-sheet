@@ -4,7 +4,6 @@
   var gulp = require("gulp");
   var bump = require("gulp-bump");
   var jshint = require("gulp-jshint");
-  var rename = require("gulp-rename");
   var uglify = require('gulp-uglify');
   var colors = require("colors");
   var runSequence = require("run-sequence");
