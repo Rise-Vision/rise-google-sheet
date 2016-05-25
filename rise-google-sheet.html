@@ -258,7 +258,7 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
         this.fire("rise-google-sheet-error", err.error.message);
 
         this._requestPending = false;
-        // not calling _startTimer(), can't distinguish between errors to determine if refresh is appropriate
+        this._startTimer();
       },
 
       _handleEmptyResponse: function (e) {
