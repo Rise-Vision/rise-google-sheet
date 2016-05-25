@@ -88,6 +88,16 @@
         assert(consoleSpy.calledOnce);
         console.warn.restore();
       });
+
+      test("should start a refresh timer after firing rise-google-sheet-error", function () {
+        var timerStub = sinon.stub(sheetRequest, "_startTimer");
+
+        sheetRequest._onSheetError(e, errorData);
+        assert(timerStub.calledOnce);
+
+        sheetRequest._startTimer.restore();
+      });
+
     });
 
     suite("_onSheetResponse", function () {
