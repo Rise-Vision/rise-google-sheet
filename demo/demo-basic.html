@@ -12,6 +12,13 @@
 
 <p>An example of <code>&lt;rise-google-sheet&gt;</code>:</p>
 
+<p>Enter your API key and click "Submit"</p>
+
+<form name="apikey">
+  <input type="text" style="width: 300px;" name="key" id="key" maxlength="100">
+  <input type="button" name="btn" value="Submit" />
+</form>
+
 <rise-google-sheet id="googleSheet"
                    key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I"
                    sheet="Cars"></rise-google-sheet>
@@ -20,10 +27,27 @@
   (function () {
     "use strict";
 
+    function go(apiKey) {
+      var googleSheet = document.getElementById("googleSheet");
+
+      googleSheet.setAttribute("apiKey", apiKey);
+
+      googleSheet.go();
+    }
+
     function webComponentsReady() {
       window.removeEventListener("WebComponentsReady", webComponentsReady);
 
-      var googleSheet = document.getElementById("googleSheet");
+      var googleSheet = document.getElementById("googleSheet"),
+        formBtn = document.querySelector("input[name='btn']"),
+        apiKeyInput = document.querySelector("input[name='key']");
+
+      //add event listener
+      formBtn.addEventListener("click", function() {
+        if (apiKeyInput.value !== "") {
+          go(apiKeyInput.value);
+        }
+      });
 
       googleSheet.addEventListener("rise-google-sheet-response", function (e) {
         console.log(e.detail.results);
@@ -32,8 +56,6 @@
       googleSheet.addEventListener("rise-google-sheet-error", function (e) {
         console.log(e.detail);
       });
-
-      googleSheet.go();
 
     }
 

@@ -2,33 +2,44 @@
 
 ## Introduction
 
-`rise-google-sheet` is a Polymer Web Component that works with [Rise Vision](https://www.risevision.com/), the digital signage management application for [Web Designers](http://risevision.com/web-designers). It retrieves data from a Google Sheet specified by key. It uses the cell-based feed feature of the [Google Sheets API](https://developers.google.com/google-apps/spreadsheets/) where each entry represents a single cell.
+`rise-google-sheet` is a Polymer Web Component that works with [Rise Vision](https://www.risevision.com/), the digital signage management application for [Web Designers](http://risevision.com/web-designers). It uses  the [Google Sheets API](https://developers.google.com/google-apps/spreadsheets/) to access and retrieve the values of a Google Sheet specified by key.
 
 The `key` attribute is required which is to identify the Google Sheet you want to target. A spreadsheet's key can be found in the URL when viewing it in Google Docs (e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
 
-Optionally, the `tab-id` attribute allows for specifying a particular worksheet tab in the spreadsheet. For example, the first tab would be `tab-id="1"`.
+The `apikey` attribute is required which is to identify the request being sent to the Google Sheets API. Requests to the Google Sheets API for public data must be accompanied by this identifier. To learn more about acquiring an API key see [Acquiring and using an API key](https://developers.google.com/sheets/guides/authorizing#APIKey).
 
-The specified feed is periodically retrieved if the `refresh` attribute is set, although a minimum refresh time of 10 seconds is enforced.
+The `sheet` attribute is also a required attribute which is the name of the sheet to target in a spreadsheet. For example, by default "Sheet1" is the name of the first sheet in a new google spreadsheet.
+
+The data is periodically retrieved if the `refresh` attribute is set, although a minimum refresh time of 1 minute is enforced.
 
 ### Range
-`rise-google-sheet` allows for fetching specific rows or columns from a worksheet by providing several attributes to specify the range of cells you want to retrieve.
+`rise-google-sheet` allows for fetching specific values from a worksheet by providing a `range` attribute where the value must be in A1 notation. This is a string like A1:B2, that refers to a group of cells in the spreadsheet.
 
-For example, to retrieve cells for every row after the first row, and only in the fourth column, add the following attributes below:
-
-```
-<rise-google-sheet key="abc123" min-row="2" min-column="4" max-column="4"></rise-google-sheet>
-```
-
-### Empty cells
-Optionally, the `return-empty` attribute allows for retrieving all cell data in a worksheet including empty cells. This is helpful if perhaps you want to visualize a table with the data and it's important that empty cells are included in the response to accurately populate the table with the data. 
-
-Please note that using `return-empty` will return all empty cells, including the excess columns and rows in your worksheet. If this is not desired then you can workaround this by deleting the excess columns and rows from your worksheet. Alternatively, use the range attributes to specify exactly which cells are required.
-
-For example, to retrieve cells for columns 1-5 and rows 2-10 **and** include empty cells:
+For example, A1:B2 refers to the first two cells in the top two rows of the targeted sheet and would be used like below:
 
 ```
-<rise-google-sheet key="abc123" max-column="5" min-row="2" max-row="10" return-empty="true"></rise-google-sheet>
+<rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" range="A1:B2"></rise-google-sheet>
 ```
+
+### Dimension
+Optionally, the `dimension` attribute allows for specifying the major dimension that results should use. Options are "ROWS" or "COLUMNS". By default the "ROWS" value is applied. 
+
+For example, if the spreadsheet data is: A1=1,B1=2,A2=3,B2=4, then the below will return [[1,2],[3,4]]:
+
+```
+<rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" dimension="ROWS"></rise-google-sheet>
+```
+
+Whereas the below will return [[1,3],[2,4]]:
+
+```
+<rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" dimension="COLUMNS"></rise-google-sheet>
+```
+
+### Render
+Optionally, the `render` attribute can be used to specify how values should be represented in the output. By default, the "FORMATTED_VALUE" is applied which means values will be calculated and formatted in the reply according to the cell's formatting.
+
+For a list of options and detail on the use of each see [ValueRenderOption](https://developers.google.com/sheets/reference/rest/v4/ValueRenderOption).
 
 ## Usage
 To use the Google Sheet Web Component, you should first install it using Bower:
@@ -48,7 +59,8 @@ Next, construct your HTML page. You should include `webcomponents-lite.min.js` b
   <body>
     <rise-google-sheet
       key="abc123"
-      min-row="2"
+      apikey="def456"
+      sheet="Sheet1"
       refresh="30"></rise-google-sheet>
 
     <script>
@@ -58,8 +70,8 @@ Next, construct your HTML page. You should include `webcomponents-lite.min.js` b
 
         // Respond to events it fires.
         sheet.addEventListener('rise-google-sheet-response', function(e) {
-          if (e.detail && e.detail.cells) {
-            console.log(e.detail.cells); // Array of cell objects
+          if (e.detail && e.detail.results) {
+            console.log(e.detail.results); // Array of values
           }
         });
 
@@ -70,9 +82,7 @@ Next, construct your HTML page. You should include `webcomponents-lite.min.js` b
 </html>
 ```
 
-`rise-google-sheet` returns an Array of cell objects that the Sheets API has provided. It uses the cell-based feed feature of the API where each entry represents a single cell.
-
-For more detail on the format of cell objects see ["Working with cell-based feeds"](https://developers.google.com/google-apps/spreadsheets/#working_with_cell-based_feeds_1).
+`rise-google-sheet` returns an Array of values that the Sheets API has provided.
 
 ## Documentation
 For further documentation on `rise-google-sheet` attributes, methods, usage, and a comprehensive demo, please see [here](http://rise-vision.github.io/rise-google-sheet).
@@ -106,8 +116,8 @@ To make changes to the web component, you'll first need to install the dependenc
 
 The web components can now be installed by executing the following commands in Terminal:
 ```
-git clone https://github.com/Rise-Vision/web-component-rise-google-sheet.git
-cd web-component-rise-google-sheet
+git clone https://github.com/Rise-Vision/rise-google-sheet.git
+cd rise-google-sheet
 npm install
 bower install
 ```
