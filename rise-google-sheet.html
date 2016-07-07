@@ -2,31 +2,29 @@
 <link rel="import" href="../iron-ajax/iron-ajax.html">
 
 <!--
-`rise-google-sheet` is a web component that retrieves data from a Google Sheet specified by key.
-It uses the cell-based feed feature of the [Google Sheets API](https://developers.google.com/google-apps/spreadsheets/)
-where each entry represents a single cell.
+`rise-google-sheet` is a web component that retrieves values from a Google Sheet specified by key and sheet name.
 
-The `key` attribute is required which is to identify the Google Sheet you want to target.
+The `key` attribute is required which is to identify the Google Spreadsheet you want to target.
 A spreadsheet's key can be found in the URL when viewing it in Google Docs
 (e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
 
-Optionally, the `tab-id` attribute allows for specifying a particular worksheet tab in the spreadsheet.
-For example, the first tab would be `tab-id="1"`.
+The `sheet` attribute is also required which is the name of the specific sheet within the Spreadsheet that you want
+to retrieve values from. (eg. Sheet1)
 
 The specified feed is periodically retrieved if the `refresh` attribute is set, although a minimum refresh
-time of 10 seconds is enforced.
+time of 1 minute is enforced.
 
 #### Example Usage
 
-    <rise-google-sheet key="abc123" tab-id="2" min-row="2" refresh="30"></rise-google-sheet>
+    <rise-google-sheet key="abc123" sheet="Sheet1" refresh="30"></rise-google-sheet>
 
     <script>
       var sheet = document.querySelector('rise-google-sheet');
 
       // Respond to events it fires.
       sheet.addEventListener('rise-google-sheet-response', function(e) {
-        if (e.detail && e.detail.cells) {
-          console.log(e.detail.cells); // Array of cell objects
+        if (e.detail && e.detail.results) {
+          console.log(e.detail.results); // Array of sheet values
         }
       });
 
@@ -35,26 +33,24 @@ time of 10 seconds is enforced.
 
 #### Range
 
-`rise-google-sheet` allows for fetching specific rows or columns from a worksheet by providing several
-attributes to specify the range of cells you want to retrieve.
+`rise-google-sheet` allows for fetching specific range of values from a worksheet by providing an attribute that expects
+ A1 notation of the values to retrieve.
 
-For example, to retrieve cells for every row after the first row, and only in the fourth column:
+For example, to retrieve all values within cells A1 to B2 of the worksheet:
 
-    <rise-google-sheet key="abc123" min-row="2" min-column="4" max-column="4"></rise-google-sheet>
+    <rise-google-sheet key="abc123" sheet="Sheet1" range="A1:B2"></rise-google-sheet>
 
-#### Empty cells
+#### Dimension
 
-Optionally, the `return-empty` attribute allows for retrieving all cell data in a worksheet including empty cells.
-This is helpful if perhaps you want to visualize a table with the data and it's important that empty cells are
-included in the response to accurately populate the table with the data.
+Optionally, the `dimension` attribute allows for specifying the major dimension that results should use.
+For example, if the spreadsheet data is: A1=1,B1=2,A2=3,B2=4, then dimension="ROWS" will return [[1,2],[3,4]],
+whereas dimension="COLUMNS" will return [[1,3],[2,4]].
 
-Please note that using `return-empty` will return all empty cells, including the excess columns and rows
-in your worksheet. If this is not desired then you can workaround this by deleting the excess columns and rows
-from your worksheet. Alternatively, use the range attributes to specify exactly which cells are required.
+#### Render
 
-For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include empty cells:
-
-    <rise-google-sheet key="abc123" max-column="5" max-row="10" return-empty="true"></rise-google-sheet>
+Optionally, the `render` attribute determines how values should be represented in the output. By default the
+values will be calculated and formatted in the response according to the cell's formatting. For more detail on
+the values that can be provided in this attribute and their impact, see [Google Sheets API - ValueRenderOption](https://developers.google.com/sheets/reference/rest/v4/ValueRenderOption)
 
 @demo
 -->
@@ -76,7 +72,9 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
 
     "use strict";
 
-    var SCOPE = "https://spreadsheets.google.com/feeds";
+    var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/";
+
+    var API_KEY = "AIzaSyBXxVK_IOV7LNQMuVVo_l7ZvN53ejN86zY";
 
     var LOCAL_STORAGE_BASE_NAME = "risesheet";
 
@@ -102,16 +100,32 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
         },
 
         /**
-         * Tab within a spreadsheet. For example, the first tab in a spreadsheet
-         * would be `tab-id="1"`.
+         * Name of sheet to target in a spreadsheet. For example, by default 'Sheet1' is the name of first sheet
+         * in a new google spreadsheet
          */
-        tabId: {
-          type: Number,
-          value: 1
+        sheet: {
+          type: String,
+          value: ""
         },
 
         /**
-         * The number of seconds before another request will be made.
+         * The A1 notation of the values to retrieve.
+         */
+        range: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * The major dimension that results should use. Options are 'ROWS' or 'COLUMNS'
+         */
+        dimension: {
+          type: String,
+          value: "ROWS"
+        },
+
+        /**
+         * The number of minutes before another request will be made.
          */
         refresh: {
           type: Number,
@@ -119,53 +133,22 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
         },
 
         /**
-         * Returns a list of cell data.
+         * How values should be represented in the output. Options are 'FORMATTED_VALUE', 'UNFORMATTED_VALUE',
+         * and 'FORMULA'
          */
-        cells: {
+        render: {
+          type: String,
+          value: "FORMATTED_VALUE"
+        },
+
+        /**
+         * Returns the values from a spreadsheet.
+         */
+        results: {
           type: Array,
           value: function() { return []; },
           readOnly: true,
           notify: true
-        },
-
-        /**
-         * The starting column of the worksheet.
-         */
-        minColumn: {
-          type: Number,
-          value: 0
-        },
-
-        /**
-         * The last column of the worksheet to include.
-         */
-        maxColumn: {
-          type: Number,
-          value: 0
-        },
-
-        /**
-         * The starting row of the worksheet.
-         */
-        minRow: {
-          type: Number,
-          value: 0
-        },
-
-        /**
-         * The last row of the worksheet to include.
-         */
-        maxRow: {
-          type: Number,
-          value: 0
-        },
-
-        /**
-         * Include empty cells of the worksheet.
-         */
-        returnEmpty: {
-          type: Boolean,
-          value: false
         }
       },
 
@@ -217,11 +200,9 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
         this.refresh = parseInt(this.refresh, 10);
 
         if (!isNaN(this.refresh) && this.refresh !== 0) {
-          this.refresh = (this.refresh < 10) ? 10 : this.refresh;
-
           this.debounce("refresh", function () {
             refreshFn.call(self);
-          }, this.refresh * 1000);
+          }, this.refresh * 60000);
         }
       },
 
@@ -229,69 +210,56 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
         var response = {};
 
         /*
-         Provide an empty array if entry property missing in feed object. This can occur if any range
+         Provide an empty array if values property missing in response object. This can occur if any range
          values (minColumn, maxColumn, minRow, maxRow) are out of scope of the data entered in worksheet
         */
-        response.cells = (resp.feed.entry) ? resp.feed.entry : [];
-
-        // TODO: provide spreadsheet meta data (title, authors, etc)?
+        response.results = (resp.values) ? resp.values : [];
 
         return response;
       },
 
-      _onSheetError: function(e, err) {
-        // in case there are other instances of rise-google-sheet
-        e.stopPropagation();
+      _handleNoNetwork: function (resp) {
+        var cachedData = this._getCachedData();
 
-        // reset the value of cells
-        this._setCells([]);
+        if (cachedData) {
+          this._setResults(cachedData.results);
 
-        // if cached data exists, remove it
-        if (this._getCachedData()) {
-          try {
-            localStorage.removeItem(this._getLocalStorageKey());
-          } catch (ex) {
-            console.warn(ex.message);
-          }
+          this.fire("rise-google-sheet-response", cachedData);
         }
-
-        this.fire("rise-google-sheet-error", err.error.message);
+        else {
+          this.fire("rise-google-sheet-error", resp);
+        }
 
         this._requestPending = false;
         this._startTimer();
       },
 
-      _handleEmptyResponse: function (e) {
-        var cachedData;
+      _onSheetError: function(e, resp) {
+        // in case there are other instances of rise-google-sheet
+        e.stopPropagation();
 
-        // check xhr.status to be 0, <iron-ajax> treats no status (no internet connection) as successful
-        if (e.target.lastRequest && e.target.lastRequest.xhr.status === 0) {
-          cachedData = this._getCachedData();
+        if (resp.request && resp.request.status === 0) {
+          this._handleNoNetwork(resp);
+        }
+        else {
+          // reset the value of cells
+          this._setResults([]);
 
-          /*
-           * NOTE:
-           * Unfortunately xhr.status is also 0 when incorrect tab id is used. If cached data exists,
-           * it will be provided even though tab id is incorrect.
-           */
-
-          if (cachedData) {
-            this._setCells(cachedData.cells);
-
-            this.fire("rise-google-sheet-response", cachedData);
-
-            this._requestPending = false;
-            this._startTimer();
-
-            return;
+          // if cached data exists, remove it
+          if (this._getCachedData()) {
+            try {
+              localStorage.removeItem(this._getLocalStorageKey());
+            } catch (ex) {
+              console.warn(ex.message);
+            }
           }
+
+          this.fire("rise-google-sheet-error", resp);
+
+          this._requestPending = false;
+          this._startTimer();
         }
 
-        // no response and no cached data available, process this as an error
-        this._onSheetError(e, {
-          error: {
-            message: "Empty response and no cached data available."
-          }
-        });
       },
 
       _onSheetResponse: function(e, resp) {
@@ -306,64 +274,36 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
           // cache the data if possible
           this._setCachedData(responseData);
 
-          // use setter method to apply cells value because this property is read only
-          this._setCells(responseData.cells);
+          // use setter method to apply results value because this property is read only
+          this._setResults(responseData.results);
 
           this.fire("rise-google-sheet-response", responseData);
-
-          this._requestPending = false;
-          this._startTimer();
-
         }
-        else {
-          /*
-           * This can happen here because <iron-ajax> sets xhr.status to 0 in certain circumstances.
-           * There is an open issue regarding the behaviour:
-           *
-           * https://github.com/PolymerElements/iron-ajax/issues/45
-           *
-           */
-          this._handleEmptyResponse(e);
-        }
+
+        this._requestPending = false;
+        this._startTimer();
+
       },
 
       _getParams: function() {
         var params = {};
 
-        // required in every request
-        params.alt = "json";
+        // required to obtain public data
+        params.key = API_KEY;
 
-        // return empty cells
-        if (this.returnEmpty) {
-          params["return-empty"] = true;
-        }
+        params.majorDimension = this.dimension;
 
-        this.minColumn = parseInt(this.minColumn, 10);
-        this.maxColumn = parseInt(this.maxColumn, 10);
-        this.minRow = parseInt(this.minRow, 10);
-        this.maxRow = parseInt(this.maxRow, 10);
-
-        if (!isNaN(this.minColumn) && this.minColumn !== 0) {
-          params["min-col"] = this.minColumn;
-        }
-
-        if (!isNaN(this.maxColumn) && this.maxColumn !== 0) {
-          params["max-col"] = this.maxColumn;
-        }
-
-        if (!isNaN(this.minRow) && this.minRow !== 0) {
-          params["min-row"] = this.minRow;
-        }
-
-        if (!isNaN(this.maxRow) && this.maxRow !== 0) {
-          params["max-row"] = this.maxRow;
-        }
+        params.valueRenderOption = this.render;
 
         return params;
       },
 
+      _getRange: function() {
+        return (this.range === "") ? "" : "!" + this.range;
+      },
+
       _getUrl: function() {
-        return SCOPE + "/cells/" + this.key + "/" +  this.tabId + "/public/full";
+        return API_BASE_URL + this.key + "/values/" + this.sheet + this._getRange();
       },
 
       /**
@@ -372,7 +312,7 @@ For example, to retrieve cells for columns 1-5 and rows 1-10 **and** include emp
        */
       go: function() {
         // key is required, don't make request if missing 'key' or if a previous request is pending
-        if (this.key === "" || this._requestPending) {
+        if (this.key === "" || this.sheet === "" || this._requestPending) {
           return;
         }
 

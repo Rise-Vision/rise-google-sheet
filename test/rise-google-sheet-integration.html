@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<rise-google-sheet id="request" key="abc123"></rise-google-sheet>
+<rise-google-sheet id="request" key="abc123" sheet="Sheet1"></rise-google-sheet>
 
 <script src="data/sheet.js"></script>
 <script src="data/error.js"></script>
@@ -35,16 +35,16 @@
     });
 
     setup(function() {
-      localStorage.removeItem("risesheet"); // clear localStorage
+      localStorage.removeItem("risesheet_" + sheetRequest.key); // clear localStorage
     });
 
     suite("request data", function() {
       test("should return an Array of cell objects when server/API request responds successfully", function(done) {
         responseHandler = function(response) {
 
-          assert.property(response.detail, "cells", "detail.cells property exists");
-          assert.isArray(response.detail.cells, "detail.cells is an Array");
-          assert.deepEqual(response.detail.cells, sheetData.feed.entry);
+          assert.property(response.detail, "results", "detail.results property exists");
+          assert.isArray(response.detail.results, "detail.results is an Array");
+          assert.deepEqual(response.detail.results, sheetData.values);
 
           sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
           done();
@@ -59,8 +59,9 @@
       test("should return error when server/API request responds unsuccessful", function (done) {
         responseHandler = function(response) {
 
-          assert.isString(response.detail, "detail is a String");
-          assert.equal(response.detail, errorData.error.message);
+          assert.isObject(response.detail, "detail is an Object");
+          assert.equal(response.detail.request.status, 400);
+          assert.equal(response.detail.error.message, "The request failed with status code: 400");
 
           sheetRequest.removeEventListener("rise-google-sheet-error", responseHandler);
           done();
@@ -75,10 +76,10 @@
     });
 
     suite("offline cached data", function() {
-      test("should return cached Array of cell objects when <iron-ajax> sets lastRequest.xhr.status to 0", function (done) {
+      test("should return cached Array of values when making offline request", function (done) {
         responseHandler = function(response) {
 
-          assert.deepEqual(response.detail.cells, sheetData.feed.entry);
+          assert.deepEqual(response.detail.results, sheetData.values);
 
           sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
           done();
@@ -89,7 +90,12 @@
         sheetRequest.go();
         server.respond();
 
-        server.respondWith([400, {}, ""]);
+        server.respondWith([0, {}, JSON.stringify({
+          "error": {},
+          "request": {
+            "status": 0
+          }
+        })]);
         sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
         sheetRequest.go();
         server.respond();

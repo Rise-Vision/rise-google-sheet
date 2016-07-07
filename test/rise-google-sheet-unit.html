@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<rise-google-sheet id="request" key="abc123"></rise-google-sheet>
+<rise-google-sheet id="request" key="abc123" sheet="Sheet1"></rise-google-sheet>
 
 <script src="data/sheet.js"></script>
 <script src="data/error.js"></script>
@@ -67,8 +67,22 @@
         done();
       });
 
+      test("should call _handleNoNetwork if request status is 0", function () {
+        var noNetworkStub = sinon.stub(sheetRequest, "_handleNoNetwork");
+
+        sheetRequest._onSheetError(e, {
+          "request": {
+            "status": 0
+          }
+        });
+
+        assert.isTrue(noNetworkStub.calledOnce);
+
+        sheetRequest._handleNoNetwork.restore();
+      });
+
       test("should remove item from localStorage if it exists", function () {
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells: sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
 
         sheetRequest._onSheetError(e, errorData);
 
@@ -78,7 +92,7 @@
       test("should catch error thrown by localStorage.removeItem and log a warning in console", function () {
         var consoleSpy = sinon.spy(console, "warn");
 
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells: sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
 
         // force an error from localStorage.removeItem()
         window.localStorageError = true;
@@ -109,15 +123,15 @@
         };
 
       teardown(function() {
-        sheetRequest._setCells([]);
+        sheetRequest._setResults([]);
         localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
-      test("should fire rise-google-sheet-response, set cells property, and save to localStorage", function(done) {
+      test("should fire rise-google-sheet-response, set results property, and save to localStorage", function(done) {
         listener = function(response) {
           responded = true;
 
-          assert.property(response.detail, "cells", "detail.cells property exists");
+          assert.property(response.detail, "results", "detail.results property exists");
 
           sheetRequest.removeEventListener("rise-google-sheet-response", listener);
         };
@@ -125,31 +139,10 @@
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
         sheetRequest._onSheetResponse(e, resp);
 
-        assert.deepEqual(sheetRequest.cells, resp.response.feed.entry, "cells property is set correctly");
-        assert.deepEqual(JSON.parse(localStorage.getItem(sheetRequest._getLocalStorageKey())), {cells: sheetData.feed.entry},
+        assert.deepEqual(sheetRequest.results, resp.response.values, "results property is set correctly");
+        assert.deepEqual(JSON.parse(localStorage.getItem(sheetRequest._getLocalStorageKey())), {results: sheetData.values},
           "localStorage saved data correctly");
         assert.isTrue(responded);
-
-        done();
-      });
-
-      test("should not fire rise-google-sheet-response and make a call to _handleEmptyResponse()", function(done) {
-        var emptyResponseStub = sinon.stub(sheetRequest, "_handleEmptyResponse", function (){});
-
-        listener = function(response) {
-          responded = true;
-
-          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
-        };
-
-        sheetRequest.addEventListener("rise-google-sheet-response", listener);
-        sheetRequest._onSheetResponse(e);
-
-        assert(emptyResponseStub.calledOnce);
-        assert(emptyResponseStub.calledWith(e));
-        assert.isFalse(responded);
-
-        sheetRequest._handleEmptyResponse.restore();
 
         done();
       });
@@ -157,105 +150,88 @@
     });
 
     suite("_prepareResponse", function() {
-      test("should return an Array of cell objects", function() {
+      test("should return an Array of values", function() {
         var response = sheetRequest._prepareResponse(sheetData);
 
-        assert.property(response, "cells");
-        assert.isArray(response.cells);
-        assert.deepEqual(response.cells, sheetData.feed.entry);
+        assert.property(response, "results");
+        assert.isArray(response.results);
+        assert.deepEqual(response.results, sheetData.values);
       });
     });
 
     suite("_getParams", function() {
       var params,
         standardParams = {
-          "alt": "json"
+          "key": "AIzaSyBXxVK_IOV7LNQMuVVo_l7ZvN53ejN86zY",
+          "majorDimension": "ROWS",
+          "valueRenderOption": "FORMATTED_VALUE"
         };
 
       teardown(function() {
-        sheetRequest.returnEmpty = false;
-        sheetRequest.minColumn = 0;
-        sheetRequest.maxColumn = 0;
-        sheetRequest.minRow = 0;
-        sheetRequest.maxRow = 0;
+        sheetRequest.dimension = "ROWS";
+        sheetRequest.render = "FORMATTED_VALUE";
       });
 
-      test("should return an object with 'alt' property only", function () {
+      test("should return an object with default params", function () {
         params = sheetRequest._getParams();
 
-        assert.property(params, "alt");
-        assert.isString(params.alt);
         assert.deepEqual(params, standardParams);
       });
 
-      test("should return an object that contains 'return-empty` property", function () {
-        sheetRequest.returnEmpty = true;
+      test("should return an object that applies 'dimension' attribute value", function () {
+        sheetRequest.dimension = "COLUMNS";
 
         params = sheetRequest._getParams();
 
-        assert.property(params, "return-empty");
-        assert.isBoolean(params["return-empty"]);
-        assert.isTrue(params["return-empty"]);
+        assert.isString(params["majorDimension"]);
+        assert.equal(params["majorDimension"], "COLUMNS");
       });
 
-      test("should return an object that contains 'min-col' property", function () {
-        sheetRequest.minColumn = 2;
+      test("should return an object that applies 'render' attribute value", function () {
+        sheetRequest.render = "FORMULA";
 
         params = sheetRequest._getParams();
 
-        assert.property(params, "min-col");
-        assert.isNumber(params["min-col"]);
-        assert.equal(params["min-col"], 2);
+        assert.isString(params["valueRenderOption"]);
+        assert.equal(params["valueRenderOption"], "FORMULA");
       });
 
-      test("should return an object that contains 'max-col' property", function () {
-        sheetRequest.maxColumn = 2;
+    });
 
-        params = sheetRequest._getParams();
+    suite("_getRange", function () {
 
-        assert.property(params, "max-col");
-        assert.isNumber(params["max-col"]);
-        assert.equal(params["max-col"], 2);
+      test("should return correct format of range if range has value", function () {
+        var range;
+
+        sheetRequest.range = "B2:F20";
+
+        range = sheetRequest._getRange();
+
+        assert.isString(range);
+        assert.equal(range, "!B2:F20");
       });
 
-      test("should return an object that contains 'min-row' property", function () {
-        sheetRequest.minRow = 2;
-
-        params = sheetRequest._getParams();
-
-        assert.property(params, "min-row");
-        assert.isNumber(params["min-row"]);
-        assert.equal(params["min-row"], 2);
-      });
-
-      test("should return an object that contains 'max-row' property", function () {
-        sheetRequest.maxRow = 2;
-
-        params = sheetRequest._getParams();
-
-        assert.property(params, "max-row");
-        assert.isNumber(params["max-row"]);
-        assert.equal(params["max-row"], 2);
-      });
     });
 
     suite("_getUrl", function () {
       var url;
 
       teardown(function() {
-        sheetRequest.key = "";
-        sheetRequest.tabId = 1;
+        sheetRequest.range = "";
       });
 
       test("should return correct URL to use for generating a request to Sheets API", function () {
-        sheetRequest.key = "abc123";
-        sheetRequest.tabId = 2;
+        sheetRequest.range = "B2:F20";
 
         url = sheetRequest._getUrl();
 
         assert.isString(url);
-        assert.equal(url, "https://spreadsheets.google.com/feeds/cells/abc123/2/public/full");
+        assert.equal(url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet1!B2:F20");
       });
+    });
+
+    teardown(function() {
+      sheetRequest.range = "";
     });
 
     suite("go", function () {
@@ -266,59 +242,51 @@
       });
 
       teardown(function() {
-        sheetRequest.key = "";
+        sheetRequest.key = "abc123";
+        sheetRequest.sheet = "Sheet1";
         sheetRequest._requestPending = false;
-        sheetRequest.minRow = 0;
-        sheetRequest.maxRow = 0;
-        sheetRequest.minColumn = 0;
-        sheetRequest.maxColumn = 0;
-        sheetRequest.returnEmpty = false;
         sheetRequest.$.sheet.generateRequest.restore();
       });
 
       test("should not make call to generate request without a value for 'key'", function () {
+        sheetRequest.key = "";
+
+        sheetRequest.go();
+
+        assert.equal(requestStub.callCount, 0);
+      });
+
+      test("should not make call to generate request without a value for 'sheet'", function () {
+        sheetRequest.sheet = "";
+
         sheetRequest.go();
 
         assert.equal(requestStub.callCount, 0);
       });
 
       test("should ensure the correct url is provided in request to Sheets API", function () {
-        sheetRequest.key = "abc123";
-        sheetRequest.tabId = 2;
         sheetRequest.go();
 
-        assert.equal(sheetRequest.$.sheet.url, "https://spreadsheets.google.com/feeds/cells/abc123/2/public/full");
+        assert.equal(sheetRequest.$.sheet.url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet1");
       });
 
-      test("should ensure all required and optional params are included in request to Sheets API", function () {
-        sheetRequest.key = "abc123";
-        sheetRequest.minRow = 2;
-        sheetRequest.maxRow = 2;
-        sheetRequest.minColumn = 2;
-        sheetRequest.maxColumn = 2;
-        sheetRequest.returnEmpty = true;
-
+      test("should ensure all required params are included in request to Sheets API", function () {
         sheetRequest.go();
 
         assert.deepEqual(sheetRequest.$.sheet.params, {
-          "alt": "json",
-          "return-empty": true,
-          "min-col": 2,
-          "max-col": 2,
-          "min-row": 2,
-          "max-row": 2
+          "key": "AIzaSyBXxVK_IOV7LNQMuVVo_l7ZvN53ejN86zY",
+          "majorDimension": "ROWS",
+          "valueRenderOption": "FORMATTED_VALUE"
         });
       });
 
       test("should generate request to Sheets API", function () {
-        sheetRequest.key = "abc123";
         sheetRequest.go();
 
         assert(requestStub.calledOnce);
       });
 
       test("should not execute further request when there is one pending a response", function() {
-        sheetRequest.key = "abc123";
         sheetRequest.go();
         sheetRequest.go();
         sheetRequest.go();
@@ -332,10 +300,10 @@
         sheetRequest.refresh = 0;
       });
 
-      test("should enforce a minimum refresh interval of 10 (seconds)", function() {
-        sheetRequest.refresh = 5;
+      test("should enforce a minimum refresh interval of 1 (minutes)", function() {
+        sheetRequest.refresh = 0.5;
         sheetRequest._startTimer();
-        assert.equal(sheetRequest.refresh, 10);
+        assert.equal(sheetRequest.refresh, 0);
       });
 
       test("should make a new request for data", function() {
@@ -344,7 +312,7 @@
         sheetRequest.refresh = 30;
         sheetRequest._startTimer();
 
-        clock.tick(30000);
+        clock.tick(1800000);
         assert(timerStub.calledOnce);
 
         sheetRequest.go.restore();
@@ -365,14 +333,14 @@
         // force an error from localStorage.setItem()
         window.localStorageError = true;
 
-        sheetRequest._setCachedData({cells: sheetData.feed.entry});
+        sheetRequest._setCachedData({results: sheetData.values});
 
         assert(warnSpy.calledOnce);
         console.warn.restore();
       });
 
       test("should ensure data passed in localStorage.setItem() is stringified", function () {
-        sheetRequest._setCachedData({cells: sheetData.feed.entry});
+        sheetRequest._setCachedData({results: sheetData.values});
 
         var value = localStorage.getItem(sheetRequest._getLocalStorageKey());
 
@@ -395,7 +363,7 @@
       });
 
       test("Should ensure value returned has been parsed as JSON", function () {
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells: sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
 
         value = sheetRequest._getCachedData();
 
@@ -403,51 +371,51 @@
       });
     });
 
-    suite("_handleEmptyResponse", function () {
+    suite("_handleNoNetwork", function () {
+      var resp = {
+        "error": {},
+        "request": {
+          "status": 0
+        }
+      };
+
       teardown(function() {
-        sheetRequest._setCells([]);
+        sheetRequest._setResults([]);
         localStorage.removeItem(sheetRequest._getLocalStorageKey());
       });
 
-      test("should fire rise-google-sheet-response when <iron-ajax> lastRequest.xhr.status is 0", function (done) {
-        var e = {
-            "stopPropagation": function () {},
-            "target": { "lastRequest": { "xhr": { "status": 0 } }
-            }
-          };
-
+      test("should fire rise-google-sheet-response when cached data exists", function (done) {
         listener = function(response) {
           responded = true;
+
+          assert.property(response.detail, "results", "detail.results property exists");
+          assert.deepEqual(response.detail.results, sheetData.values);
 
           sheetRequest.removeEventListener("rise-google-sheet-response", listener);
         };
 
         // ensure cached data exists
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({cells:sheetData.feed.entry}));
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results:sheetData.values}));
 
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
-        sheetRequest._handleEmptyResponse(e);
+        sheetRequest._handleNoNetwork(resp);
 
         assert.isTrue(responded);
 
         done();
       });
 
-      test("should fire rise-google-sheet-error when '<iron-ajax>' lastRequest.xhr.status is not 0", function (done) {
-        var e = {
-          "stopPropagation": function () {},
-          "target": { "lastRequest": { "xhr": { "status": 400 } }
-          }
-        };
-
+      test("should fire rise-google-sheet-error when cached data doesn't exist", function (done) {
         listener = function(response) {
           responded = true;
+
+          assert.equal(response.detail.request.status, 0);
 
           sheetRequest.removeEventListener("rise-google-sheet-error", listener);
         };
 
         sheetRequest.addEventListener("rise-google-sheet-error", listener);
-        sheetRequest._handleEmptyResponse(e);
+        sheetRequest._handleNoNetwork(resp);
 
         assert.isTrue(responded);
 

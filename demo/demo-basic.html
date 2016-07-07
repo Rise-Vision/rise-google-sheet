@@ -12,7 +12,9 @@
 
 <p>An example of <code>&lt;rise-google-sheet&gt;</code>:</p>
 
-<rise-google-sheet id="googleSheet" key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I"></rise-google-sheet>
+<rise-google-sheet id="googleSheet"
+                   key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I"
+                   sheet="Cars"></rise-google-sheet>
 
 <script>
   (function () {
@@ -24,7 +26,7 @@
       var googleSheet = document.getElementById("googleSheet");
 
       googleSheet.addEventListener("rise-google-sheet-response", function (e) {
-        console.log(e.detail.cells);
+        console.log(e.detail.results);
       });
 
       googleSheet.addEventListener("rise-google-sheet-error", function (e) {
