@@ -2,16 +2,13 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1.0, user-scalable=yes">
-  <title>rise-google-sheet Playlist Content Demo</title>
+  <title>rise-google-sheet Demo</title>
 
   <script src="../../webcomponentsjs/webcomponents-lite.min.js"></script>
 
   <!-- Handy Table styling -->
   <link rel="stylesheet" href="../../pure/tables-min.css">
 
-  <link rel="import" href="../../rise-page/rise-page.html">
-  <link rel="import" href="../../rise-playlist/rise-playlist.html">
-  <link rel="import" href="../../rise-playlist-item/rise-playlist-item.html">
   <link rel="import" href="../rise-google-sheet.html">
 
 </head>
@@ -19,31 +16,28 @@
 
 <p>An example of <code>&lt;rise-google-sheet&gt;</code>:</p>
 
-<rise-page display-id="VGZUDDWYAZHY">
+<p>Enter your API key and click "Submit"</p>
 
-  <rise-playlist id="playlist">
+<form style="margin-bottom: 10px">
+  <input type="text" style="width: 300px;" name="key" id="key" maxlength="100">
+  <input type="button" name="btn" value="Submit" />
+</form>
 
-    <rise-playlist-item>
-      <rise-google-sheet id="googleSheet"
-                         key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I"
-                         max-column="4" max-row="6" return-empty="true">
-        <!-- Example HTML structure -->
-        <table id="sheetTable" class="pure-table pure-table-bordered">
-          <thead>
-          <tr>
-            <!-- dynamically add column header titles -->
-          </tr>
-          </thead>
-          <tbody>
-          <!-- dynamically populate table cells -->
-          </tbody>
-        </table>
-      </rise-google-sheet>
-    </rise-playlist-item>
-
-  </rise-playlist>
-
-</rise-page>
+<rise-google-sheet id="googleSheet"
+                   key="1P5kJXEszMm-vNpaPeQ6I-rD9SGM_gqacIrHMOUrQx_I"
+                   sheet="Cars">
+  <!-- Example HTML structure -->
+  <table id="sheetTable" class="pure-table pure-table-bordered">
+    <thead>
+    <tr>
+      <!-- dynamically add column header titles -->
+    </tr>
+    </thead>
+    <tbody>
+    <!-- dynamically populate table cells -->
+    </tbody>
+  </table>
+</rise-google-sheet>
 
 <!-- Importing javascript which is the logic in building and managing the Google Sheet content -->
 <script type="text/javascript" src="demo-playlist.js"></script>
@@ -55,13 +49,22 @@
     "use strict";
 
     function webComponentsReady() {
+      var formBtn = document.querySelector("input[name='btn']"),
+        apiKeyInput = document.querySelector("input[name='key']");
+
       window.removeEventListener("WebComponentsReady", webComponentsReady);
 
       // new instance of DemoPlaylist object
       var demo = new DemoPlaylist();
 
-      // initialize the content
-      demo.init();
+      //add event listener
+      formBtn.addEventListener("click", function() {
+        if (apiKeyInput.value !== "") {
+          // initialize the content
+          demo.init(apiKeyInput.value);
+        }
+      });
+
     }
 
     window.addEventListener("WebComponentsReady", webComponentsReady);

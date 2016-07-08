@@ -8,6 +8,10 @@ The `key` attribute is required which is to identify the Google Spreadsheet you 
 A spreadsheet's key can be found in the URL when viewing it in Google Docs
 (e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
 
+The `apikey` attribute is required which is to identify the request being sent to the Google Sheets API.
+Requests to the Google Sheets API for public data must be accompanied by this identifier. To learn more about
+acquiring an API key see [Acquiring and using an API key](https://developers.google.com/sheets/guides/authorizing#APIKey).
+
 The `sheet` attribute is also required which is the name of the specific sheet within the Spreadsheet that you want
 to retrieve values from. (eg. Sheet1)
 
@@ -16,7 +20,7 @@ time of 1 minute is enforced.
 
 #### Example Usage
 
-    <rise-google-sheet key="abc123" sheet="Sheet1" refresh="30"></rise-google-sheet>
+    <rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" refresh="30"></rise-google-sheet>
 
     <script>
       var sheet = document.querySelector('rise-google-sheet');
@@ -38,7 +42,7 @@ time of 1 minute is enforced.
 
 For example, to retrieve all values within cells A1 to B2 of the worksheet:
 
-    <rise-google-sheet key="abc123" sheet="Sheet1" range="A1:B2"></rise-google-sheet>
+    <rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" range="A1:B2"></rise-google-sheet>
 
 #### Dimension
 
@@ -74,8 +78,6 @@ the values that can be provided in this attribute and their impact, see [Google 
 
     var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/";
 
-    var API_KEY = "AIzaSyBXxVK_IOV7LNQMuVVo_l7ZvN53ejN86zY";
-
     var LOCAL_STORAGE_BASE_NAME = "risesheet";
 
     function supportsLocalStorage() {
@@ -95,6 +97,14 @@ the values that can be provided in this attribute and their impact, see [Google 
          * the document in Google Docs (e.g. docs.google.com/spreadsheets/d/<KEY>).
          */
         key: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * An api key must be provided to make the request for public data using the Sheets API (v4).
+         */
+        apikey: {
           type: String,
           value: ""
         },
@@ -289,7 +299,7 @@ the values that can be provided in this attribute and their impact, see [Google 
         var params = {};
 
         // required to obtain public data
-        params.key = API_KEY;
+        params.key = this.apikey;
 
         params.majorDimension = this.dimension;
 
@@ -311,8 +321,8 @@ the values that can be provided in this attribute and their impact, see [Google 
        *
        */
       go: function() {
-        // key is required, don't make request if missing 'key' or if a previous request is pending
-        if (this.key === "" || this.sheet === "" || this._requestPending) {
+        // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
+        if (this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending) {
           return;
         }
 

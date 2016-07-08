@@ -44,34 +44,16 @@ var DemoPlaylist = function () {
     }
   }
 
-  function _getNumOfColumns(cells) {
-    var columns = [],
-      found, val;
-
-    for (var i = 0; i < cells.length; i += 1) {
-      val = parseInt(cells[i].gs$cell.col, 10);
-      found = columns.some(function (col) {
-        return col === val;
-      });
-
-      if (!found) {
-        columns.push(val);
-      }
-    }
-
-    return columns.length;
-  }
-
-  function _applyHeaderRow(cells, numOfColumns) {
+  function _applyHeaderRow(headerValues) {
     var thead = document.querySelector("thead tr"),
       fragment = document.createDocumentFragment(),
       titles = [],
       th;
 
-    // loop through cells data and construct table header markup
-    for (var i = 0; i < numOfColumns; i += 1) {
+    // loop through first row column values and construct table header markup
+    for (var i = 0; i < headerValues.length; i += 1) {
       th = document.createElement("th");
-      th.innerHTML = (cells[i]) ?  cells[i].gs$cell.$t : "";
+      th.innerHTML = headerValues[i];
 
       titles.push(th);
     }
@@ -83,16 +65,16 @@ var DemoPlaylist = function () {
     thead.appendChild(fragment);
   }
 
-  function _getRow(cells, numOfColumns, index) {
+  function _getRow(rowValues) {
     var fragment = document.createDocumentFragment(),
       contents = [],
       tr = document.createElement("tr"),
       td;
 
-    // loop through cells data and construct row markup
-    for (var i = index; i < (index + numOfColumns); i += 1) {
+    // loop through values and construct row markup
+    for (var i = 0; i < rowValues.length; i += 1) {
       td = document.createElement("td");
-      td.innerHTML = (cells[i]) ? cells[i].gs$cell.$t : "";
+      td.innerHTML = rowValues[i];
 
       contents.push(td);
     }
@@ -106,17 +88,16 @@ var DemoPlaylist = function () {
     return fragment;
   }
 
-  function _build(cells) {
-    var numOfColumns = _getNumOfColumns(cells),
-      tbody = document.getElementsByTagName("tbody"),
+  function _build(results) {
+    var tbody = document.getElementsByTagName("tbody"),
       fragment = document.createDocumentFragment(),
       rows = [],
       row;
 
-    _applyHeaderRow(cells, numOfColumns);
+    _applyHeaderRow(results[0]);
 
-    for (var i = numOfColumns; i < cells.length; i += numOfColumns) {
-      row = _getRow(cells, numOfColumns, i);
+    for (var i = 1; i < results.length; i += 1) {
+      row = _getRow(results[i]);
       rows.push(row);
     }
 
@@ -130,9 +111,9 @@ var DemoPlaylist = function () {
     _ready();
   }
 
-  function init() {
+  function init(apiKey) {
     // reference to rise-google-sheet element
-    var googleSheet = document.querySelector("#googleSheet");
+    var googleSheet = document.querySelector("rise-google-sheet");
 
     // register for the "rise-google-sheet-response" event that rise-google-sheet fires
     googleSheet.addEventListener("rise-google-sheet-response", function(e) {
@@ -140,9 +121,11 @@ var DemoPlaylist = function () {
       _clear();
 
       // build the table content with the worksheet data
-      _build(e.detail.cells);
+      _build(e.detail.results);
 
     });
+
+    googleSheet.setAttribute("apiKey", apiKey);
 
     // execute making a request for the Google Sheet data
     googleSheet.go();

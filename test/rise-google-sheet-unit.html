@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<rise-google-sheet id="request" key="abc123" sheet="Sheet1"></rise-google-sheet>
+<rise-google-sheet id="request" key="abc123" apikey="def456" sheet="Sheet1"></rise-google-sheet>
 
 <script src="data/sheet.js"></script>
 <script src="data/error.js"></script>
@@ -162,12 +162,13 @@
     suite("_getParams", function() {
       var params,
         standardParams = {
-          "key": "AIzaSyBXxVK_IOV7LNQMuVVo_l7ZvN53ejN86zY",
+          "key": "def456",
           "majorDimension": "ROWS",
           "valueRenderOption": "FORMATTED_VALUE"
         };
 
       teardown(function() {
+        sheetRequest.apikey = "def456";
         sheetRequest.dimension = "ROWS";
         sheetRequest.render = "FORMATTED_VALUE";
       });
@@ -176,6 +177,16 @@
         params = sheetRequest._getParams();
 
         assert.deepEqual(params, standardParams);
+      });
+
+      test("should return an object that applies 'apikey` attribute value", function () {
+        sheetRequest.apikey = "test";
+
+        params = sheetRequest._getParams();
+
+        assert.property(params, "key");
+        assert.isString(params["key"]);
+        assert.equal(params["key"], "test");
       });
 
       test("should return an object that applies 'dimension' attribute value", function () {
@@ -243,6 +254,7 @@
 
       teardown(function() {
         sheetRequest.key = "abc123";
+        sheetRequest.apikey = "def456";
         sheetRequest.sheet = "Sheet1";
         sheetRequest._requestPending = false;
         sheetRequest.$.sheet.generateRequest.restore();
@@ -264,6 +276,13 @@
         assert.equal(requestStub.callCount, 0);
       });
 
+      test("should not make call to generate request without a value for 'apikey'", function () {
+        sheetRequest.apikey = "";
+        sheetRequest.go();
+
+        assert.equal(requestStub.callCount, 0);
+      });
+
       test("should ensure the correct url is provided in request to Sheets API", function () {
         sheetRequest.go();
 
@@ -274,7 +293,7 @@
         sheetRequest.go();
 
         assert.deepEqual(sheetRequest.$.sheet.params, {
-          "key": "AIzaSyBXxVK_IOV7LNQMuVVo_l7ZvN53ejN86zY",
+          "key": "def456",
           "majorDimension": "ROWS",
           "valueRenderOption": "FORMATTED_VALUE"
         });
