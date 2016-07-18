@@ -176,7 +176,7 @@ the values that can be provided in this attribute and their impact, see [Google 
        * Fired when a response is received.
        *
        * @param {Object} detail
-       * @param {Object} detail.data The data returned by the Google Sheets API
+       * @param {Object} detail.results The array of sheet values returned by the Google Sheets API
        * @event rise-google-sheet-response
        */
 
@@ -184,6 +184,14 @@ the values that can be provided in this attribute and their impact, see [Google 
        * Fired when an error is received.
        *
        * @event rise-google-sheet-error
+       */
+
+      /**
+       * Fired when the API key has exceeded its quota for daily requests.
+       *
+       * @param {Object} detail
+       * @param {Object} detail.results The cached array of sheet values if data has been cached
+       * @event rise-google-sheet-quota
        */
 
       _getLocalStorageKey: function () {
@@ -239,6 +247,20 @@ the values that can be provided in this attribute and their impact, see [Google 
         return response;
       },
 
+      _handleQuotaExceeded: function () {
+        var cachedData = this._getCachedData();
+
+        if (cachedData) {
+          this._setResults(cachedData.data.results);
+        }
+
+        this.fire("rise-google-sheet-quota", (cachedData) ? cachedData.data : null);
+
+        this._requestPending = false;
+        this._startTimer();
+
+      },
+
       _handleNoNetwork: function (resp) {
         var cachedData = this._getCachedData();
 
@@ -259,26 +281,34 @@ the values that can be provided in this attribute and their impact, see [Google 
         // in case there are other instances of rise-google-sheet
         e.stopPropagation();
 
-        if (resp.request && resp.request.status === 0) {
-          this._handleNoNetwork(resp);
-        }
-        else {
-          // reset the value of cells
-          this._setResults([]);
+        if (resp.request) {
+          switch (resp.request.status) {
+            case 0:
+              this._handleNoNetwork(resp);
+              break;
+            case 429:
+              this._handleQuotaExceeded();
+              break;
+            default:
+              // reset the value of cells
+              this._setResults([]);
 
-          // if cached data exists, remove it
-          if (this._getCachedData()) {
-            try {
-              localStorage.removeItem(this._getLocalStorageKey());
-            } catch (ex) {
-              console.warn(ex.message);
-            }
+              // if cached data exists, remove it
+              if (this._getCachedData()) {
+                try {
+                  localStorage.removeItem(this._getLocalStorageKey());
+                } catch (ex) {
+                  console.warn(ex.message);
+                }
+              }
+
+              this.fire("rise-google-sheet-error", resp);
+
+              this._requestPending = false;
+              this._startTimer();
+
+              break;
           }
-
-          this.fire("rise-google-sheet-error", resp);
-
-          this._requestPending = false;
-          this._startTimer();
         }
 
       },

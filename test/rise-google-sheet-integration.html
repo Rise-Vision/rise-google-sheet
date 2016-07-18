@@ -73,6 +73,30 @@
         server.respond();
       });
 
+      test("should notify when API has exceeded its quota", function (done) {
+        responseHandler = function(response) {
+
+          assert.deepEqual(response.detail, {});
+
+          sheetRequest.removeEventListener("rise-google-sheet-quota", responseHandler);
+          done();
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-quota", responseHandler);
+
+        server.respondWith([429, {}, JSON.stringify({
+          "error": {
+            "message": "The request failed with status code: 429"
+          },
+          "request": {
+            "status": 429
+          }
+        })]);
+
+        sheetRequest.go();
+        server.respond();
+      });
+
     });
 
     suite("offline cached data", function() {
