@@ -81,6 +81,20 @@
         sheetRequest._handleNoNetwork.restore();
       });
 
+      test("should call _handleQuotaExceeded if request status is 429", function () {
+        var quotaStub = sinon.stub(sheetRequest, "_handleQuotaExceeded");
+
+        sheetRequest._onSheetError(e, {
+          "request": {
+            "status": 429
+          }
+        });
+
+        assert.isTrue(quotaStub.calledOnce);
+
+        sheetRequest._handleQuotaExceeded.restore();
+      });
+
       test("should remove item from localStorage if it exists", function () {
         localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
 
@@ -484,6 +498,52 @@
 
         sheetRequest.addEventListener("rise-google-sheet-error", listener);
         sheetRequest._handleNoNetwork(resp);
+
+        assert.isTrue(responded);
+
+        done();
+      });
+
+    });
+
+    suite("_handleQuotaExceeded", function () {
+      teardown(function() {
+        sheetRequest._setResults([]);
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+      });
+
+      test("should fire rise-google-sheet-quota", function (done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.deepEqual(response.detail, {});
+
+          sheetRequest.removeEventListener("rise-google-sheet-quota", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-quota", listener);
+        sheetRequest._handleQuotaExceeded();
+
+        assert.isTrue(responded);
+
+        done();
+      });
+
+      test("should fire rise-google-sheet-quota and provide cached data when it exists", function (done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.property(response.detail, "results", "detail.results property exists");
+          assert.deepEqual(response.detail.results, sheetData.values);
+
+          sheetRequest.removeEventListener("rise-google-sheet-quota", listener);
+        };
+
+        // ensure cached data exists
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
+
+        sheetRequest.addEventListener("rise-google-sheet-quota", listener);
+        sheetRequest._handleQuotaExceeded();
 
         assert.isTrue(responded);
 
