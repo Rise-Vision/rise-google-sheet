@@ -1,6 +1,8 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-ajax/iron-ajax.html">
 
+<script src="../moment/moment.js"></script>
+
 <!--
 `rise-google-sheet` is a web component that retrieves values from a Google Sheet specified by key and sheet name.
 
@@ -71,7 +73,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 
 <script>
   (function() {
-    /* global Polymer */
+    /* global Polymer, moment */
     /* jshint newcap: false */
 
     "use strict";
@@ -164,6 +166,10 @@ the values that can be provided in this attribute and their impact, see [Google 
 
       _requestPending: false,
 
+      _refreshPending: false,
+
+      _initialGo: true,
+
       // Element Behavior
 
       /**
@@ -194,9 +200,13 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _setCachedData: function (data) {
+        var cacheObj = {};
+
         if (supportsLocalStorage()) {
+          cacheObj.data = data;
+          cacheObj.timestamp = moment().format();
           try {
-            localStorage.setItem(this._getLocalStorageKey(), JSON.stringify(data));
+            localStorage.setItem(this._getLocalStorageKey(), JSON.stringify(cacheObj));
           } catch(e) {
             console.warn(e.message);
           }
@@ -211,6 +221,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 
         if (!isNaN(this.refresh) && this.refresh !== 0) {
           this.debounce("refresh", function () {
+            self._refreshPending = true;
             refreshFn.call(self);
           }, this.refresh * 60000);
         }
@@ -232,9 +243,9 @@ the values that can be provided in this attribute and their impact, see [Google 
         var cachedData = this._getCachedData();
 
         if (cachedData) {
-          this._setResults(cachedData.results);
+          this._setResults(cachedData.data.results);
 
-          this.fire("rise-google-sheet-response", cachedData);
+          this.fire("rise-google-sheet-response", cachedData.data);
         }
         else {
           this.fire("rise-google-sheet-error", resp);
@@ -316,16 +327,7 @@ the values that can be provided in this attribute and their impact, see [Google 
         return API_BASE_URL + this.key + "/values/" + this.sheet + this._getRange();
       },
 
-      /**
-       * Performs a request to obtain the Google Sheet data
-       *
-       */
-      go: function() {
-        // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
-        if (this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending) {
-          return;
-        }
-
+      _makeRequest: function() {
         // set flag to prevent further requests in case go() function is called before prior request responds
         this._requestPending = true;
 
@@ -334,6 +336,62 @@ the values that can be provided in this attribute and their impact, see [Google 
         this.$.sheet.params = this._getParams();
 
         this.$.sheet.generateRequest();
+      },
+
+      /**
+       * Performs a request to obtain the Google Sheet data
+       *
+       */
+      go: function() {
+        var cachedData = this._getCachedData(),
+          refreshVal = parseInt(this.refresh, 10),
+          makeRequestFn = this._makeRequest,
+          self = this,
+          then, now, diff;
+
+        // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
+        if (this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending) {
+          return;
+        }
+
+        if (this._refreshPending || !cachedData) {
+          // refresh timer completed or there is no cached data available, make the request
+          this._refreshPending = false;
+          this._makeRequest();
+        }
+        else {
+          if (this._initialGo) {
+            this._initialGo = false;
+
+            // first time component is executing go()
+
+            if (!isNaN(refreshVal) && refreshVal !== 0) {
+              then = moment(cachedData.timestamp);
+              now = moment();
+              diff = now.diff(then, "minutes");
+
+              // compare refresh value to amount of time that has passed since last timestamp in cached data
+
+              if (diff >= refreshVal) {
+                // more time has gone by than the assigned refresh value, make the request
+                this._makeRequest();
+                return;
+              }
+              else {
+                // start a refresh timer with the remaining refresh time left as the interval
+                this.debounce("refresh", function () {
+                  makeRequestFn.call(self);
+                }, (refreshVal - diff) * 60000);
+              }
+            }
+          }
+
+          this._setResults(cachedData.data.results);
+
+          // provide cached data for the response
+          this.fire("rise-google-sheet-response", cachedData.data);
+        }
+
       }
 
     });
