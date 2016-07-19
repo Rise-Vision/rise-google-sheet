@@ -95,6 +95,34 @@
         sheetRequest._handleQuotaExceeded.restore();
       });
 
+      test("should call _handlePermissionDenied if request status is 403", function () {
+        var permissionStub = sinon.stub(sheetRequest, "_handlePermissionDenied");
+
+        sheetRequest._onSheetError(e, {
+          "request": {
+            "status": 403
+          }
+        });
+
+        assert.isTrue(permissionStub.calledOnce);
+
+        sheetRequest._handlePermissionDenied.restore();
+      });
+
+      test("should call _handleNotFound if request status is 404", function () {
+        var notFoundStub = sinon.stub(sheetRequest, "_handleNotFound");
+
+        sheetRequest._onSheetError(e, {
+          "request": {
+            "status": 404
+          }
+        });
+
+        assert.isTrue(notFoundStub.calledOnce);
+
+        sheetRequest._handleNotFound.restore();
+      });
+
       test("should remove item from localStorage if it exists", function () {
         localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
 
@@ -544,6 +572,112 @@
 
         sheetRequest.addEventListener("rise-google-sheet-quota", listener);
         sheetRequest._handleQuotaExceeded();
+
+        assert.isTrue(responded);
+
+        done();
+      });
+
+    });
+
+    suite("_handlePermissionDenied", function () {
+      var resp = {
+        "error": {},
+        "request": {
+          "status": 403
+        }
+      };
+
+      teardown(function() {
+        sheetRequest._setResults([]);
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+      });
+
+      test("should fire rise-google-sheet-response when cached data exists", function (done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.property(response.detail, "results", "detail.results property exists");
+          assert.deepEqual(response.detail.results, sheetData.values);
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+        };
+
+        // ensure cached data exists
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
+
+        sheetRequest.addEventListener("rise-google-sheet-response", listener);
+        sheetRequest._handlePermissionDenied(resp);
+
+        assert.isTrue(responded);
+
+        done();
+      });
+
+      test("should fire rise-google-sheet-error when cached data doesn't exist", function (done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.equal(response.detail.request.status, 403);
+
+          sheetRequest.removeEventListener("rise-google-sheet-permission-denied", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-permission-denied", listener);
+        sheetRequest._handlePermissionDenied(resp);
+
+        assert.isTrue(responded);
+
+        done();
+      });
+
+    });
+
+    suite("_handleNotFound", function () {
+      var resp = {
+        "error": {},
+        "request": {
+          "status": 404
+        }
+      };
+
+      teardown(function() {
+        sheetRequest._setResults([]);
+        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+      });
+
+      test("should fire rise-google-sheet-response when cached data exists", function (done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.property(response.detail, "results", "detail.results property exists");
+          assert.deepEqual(response.detail.results, sheetData.values);
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+        };
+
+        // ensure cached data exists
+        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
+
+        sheetRequest.addEventListener("rise-google-sheet-response", listener);
+        sheetRequest._handleNotFound(resp);
+
+        assert.isTrue(responded);
+
+        done();
+      });
+
+      test("should fire rise-google-sheet-error when cached data doesn't exist", function (done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.equal(response.detail.request.status, 404);
+
+          sheetRequest.removeEventListener("rise-google-sheet-not-found", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-not-found", listener);
+        sheetRequest._handleNotFound(resp);
 
         assert.isTrue(responded);
 

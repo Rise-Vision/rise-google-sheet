@@ -73,6 +73,40 @@
         server.respond();
       });
 
+      test("should return error when server/API request responds unsuccessful with permission denied", function (done) {
+        responseHandler = function(response) {
+
+          assert.isObject(response.detail, "detail is an Object");
+          assert.equal(response.detail.request.status, 403);
+          assert.equal(response.detail.error.message, "The request failed with status code: 403");
+
+          sheetRequest.removeEventListener("rise-google-sheet-permission-denied", responseHandler);
+          done();
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-permission-denied", responseHandler);
+        server.respondWith([403, {}, JSON.stringify(errorData403)]);
+        sheetRequest.go();
+        server.respond();
+      });
+
+      test("should return error when server/API request responds unsuccessful with not found", function (done) {
+        responseHandler = function(response) {
+
+          assert.isObject(response.detail, "detail is an Object");
+          assert.equal(response.detail.request.status, 404);
+          assert.equal(response.detail.error.message, "The request failed with status code: 404");
+
+          sheetRequest.removeEventListener("rise-google-sheet-not-found", responseHandler);
+          done();
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-not-found", responseHandler);
+        server.respondWith([404, {}, JSON.stringify(errorData404)]);
+        sheetRequest.go();
+        server.respond();
+      });
+
       test("should notify when API has exceeded its quota", function (done) {
         responseHandler = function(response) {
 
