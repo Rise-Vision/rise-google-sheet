@@ -1,6 +1,6 @@
 {
   "name": "rise-google-sheet",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "authors": [
     "Stuart Lees <stuart.lees@risevision.com>"
   ],
@@ -21,11 +21,11 @@
   "dependencies": {
     "iron-ajax": "PolymerElements/iron-ajax#^1.0.0",
     "polymer": "Polymer/polymer#^1.0.0",
-    "underscore": "~1.8.2"
+    "underscore": "~1.8.2",
+    "moment": "^2.14.0"
   },
   "devDependencies": {
     "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
-    "moment": "^2.14.0",
     "pure": "^0.6.0",
     "web-component-tester": "*"
   }
