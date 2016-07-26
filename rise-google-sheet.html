@@ -195,7 +195,7 @@ the values that can be provided in this attribute and their impact, see [Google 
        */
 
       _getLocalStorageKey: function () {
-        return LOCAL_STORAGE_BASE_NAME + "_" + this.key;
+        return LOCAL_STORAGE_BASE_NAME + "_" + this.key + (this.range === "" ? "" : "_" + this.range);
       },
 
       _getCachedData: function () {

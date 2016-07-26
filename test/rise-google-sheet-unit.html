@@ -38,8 +38,18 @@
 
     suite("_getLocalStorageKey", function () {
 
+      teardown(function () {
+        sheetRequest.range = "";
+      });
+
       test("should return correct local storage key using unique sheet key", function () {
         assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123");
+      });
+
+      test("should return correct local storage key using unique sheet key and range", function () {
+        sheetRequest.range = "A1:C3";
+
+        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123_A1:C3");
       });
 
     });
