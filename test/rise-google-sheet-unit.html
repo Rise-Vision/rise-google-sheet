@@ -42,14 +42,14 @@
         sheetRequest.range = "";
       });
 
-      test("should return correct local storage key using unique sheet key", function () {
-        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123");
+      test("should return correct local storage key using unique and required sheet key and name", function () {
+        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123_Sheet1");
       });
 
       test("should return correct local storage key using unique sheet key and range", function () {
         sheetRequest.range = "A1:C3";
 
-        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123_A1:C3");
+        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123_Sheet1_A1:C3");
       });
 
     });
