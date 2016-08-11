@@ -35,7 +35,7 @@
     });
 
     setup(function() {
-      localStorage.removeItem("risesheet_" + sheetRequest.key); // clear localStorage
+      localStorage.removeItem("risesheet_" + sheetRequest.key + "_" + sheetRequest.sheet); // clear localStorage
     });
 
     suite("request data", function() {
