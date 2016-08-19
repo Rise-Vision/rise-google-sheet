@@ -355,7 +355,7 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _getUrl: function() {
-        return API_BASE_URL + this.key + "/values/" + this.sheet + this._getRange();
+        return API_BASE_URL + this.key + "/values/" + encodeURIComponent(this.sheet) + this._getRange();
       },
 
       _makeRequest: function() {
