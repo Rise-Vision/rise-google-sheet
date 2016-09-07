@@ -188,6 +188,64 @@
         assert.isArray(response.results);
         assert.deepEqual(response.results, sheetData.values);
       });
+
+      test("should append columns to first row", function() {
+        var data =
+          {
+            "majorDimension": "ROWS",
+            "range": "Sheet1!A1:F999",
+            "values": [
+              ["Apple"],
+              ["Milk", "Drink", "3.99"],
+              ["Crackers", "Snack", "5.99"]
+            ]
+          },
+          response = sheetRequest._prepareResponse(data);
+
+        assert.deepEqual(response.results, [
+          ["Apple", "", ""],
+          ["Milk", "Drink", "3.99"],
+          ["Crackers", "Snack", "5.99"]
+        ]);
+      });
+    });
+
+    suite("_getTotalCols", function() {
+      test("should return the total columns given a set of data with the same number of columns", function() {
+        var totalCols = sheetRequest._getTotalCols(sheetData.values);
+
+        assert.equal(totalCols, 3);
+      });
+
+      test("should return the total columns given a set of data with different numbers of columns", function() {
+        var totalCols = sheetRequest._getTotalCols([
+          ["Apple", "Fruit"],
+          ["Milk", "Drink", "3.99"],
+          ["Crackers", "Snack", "5.99"]
+        ]);
+
+        assert.equal(totalCols, 3);
+      });
+    });
+
+    suite("_getTotalCols", function() {
+      test("should append columns to row of data", function() {
+        var row = ["Milk", "Drink", "3.99"];
+
+        sheetRequest._addCellsToRow(row, 2);
+
+        assert.equal(row.length, 5, "length");
+        assert.deepEqual(row, ["Milk", "Drink", "3.99", "", ""], "data");
+      });
+
+      test("should not append columns to row of data", function() {
+        var row = ["Milk", "Drink", "3.99"];
+
+        sheetRequest._addCellsToRow(row, 0);
+
+        assert.equal(row.length, 3, "length");
+        assert.deepEqual(row, ["Milk", "Drink", "3.99"], "data");
+      });
     });
 
     suite("_getParams", function() {
