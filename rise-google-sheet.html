@@ -237,10 +237,7 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _prepareResponse: function (resp) {
-        var response = {},
-          firstRowCols = 0,
-          totalCols = 0;
-
+        var response = {};
         /*
          Provide an empty array if values property missing in response object. This can occur if any range
          values (minColumn, maxColumn, minRow, maxRow) are out of scope of the data entered in worksheet
@@ -248,13 +245,7 @@ the values that can be provided in this attribute and their impact, see [Google 
         response.results = (resp.values) ? resp.values : [];
 
         // Workaround for this issue - https://goo.gl/rsazDP.
-        firstRowCols = (response.results && response.results.length > 0) ? response.results[0].length : 0;
-        totalCols = this._getTotalCols(response.results);
-
-        // Append cells to the first row until it matches the total column count.
-        if (firstRowCols < totalCols) {
-          this._addCellsToRow(response.results[0], totalCols - firstRowCols);
-        }
+        this._addMissingData(response.results);
 
         return response;
       },
@@ -273,11 +264,21 @@ the values that can be provided in this attribute and their impact, see [Google 
         return totalCols;
       },
 
-      /* Add empty cells to a particular row. */
-      _addCellsToRow: function(row, count) {
-        for (var i = 0; i < count; i++) {
-          row.push("");
-        }
+      /* Add missing data to results, if applicable. */
+      _addMissingData: function(results) {
+        var count = 0,
+          totalCols = this._getTotalCols(results);
+
+        // Append cells to rows that have an incorrect number of columns.
+        results.forEach(function(element) {
+          if (element.length < totalCols) {
+            count = totalCols - element.length;
+
+            for (var i = 0; i < count; i++) {
+              element.push("");
+            }
+          }
+        });
       },
 
       _handleQuotaExceeded: function () {

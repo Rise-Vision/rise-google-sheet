@@ -56,7 +56,7 @@
         server.respond();
       });
 
-      test("should return data with columns appended to first row", function(done) {
+      test("should return data with columns appended to data", function(done) {
         var data =
           {
             "majorDimension": "ROWS",
@@ -64,7 +64,7 @@
             "values": [
               ["Apple"],
               ["Milk", "Drink", "3.99"],
-              ["Crackers", "Snack", "5.99"]
+              ["Crackers", "Snack"]
             ]
           };
 
@@ -72,7 +72,7 @@
           assert.deepEqual(response.detail.results, [
             ["Apple", "", ""],
             ["Milk", "Drink", "3.99"],
-            ["Crackers", "Snack", "5.99"]
+            ["Crackers", "Snack", ""]
           ]);
 
           sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);

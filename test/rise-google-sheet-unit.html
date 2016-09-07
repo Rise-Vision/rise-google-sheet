@@ -189,7 +189,7 @@
         assert.deepEqual(response.results, sheetData.values);
       });
 
-      test("should append columns to first row", function() {
+      test("should append columns to data", function() {
         var data =
           {
             "majorDimension": "ROWS",
@@ -197,7 +197,7 @@
             "values": [
               ["Apple"],
               ["Milk", "Drink", "3.99"],
-              ["Crackers", "Snack", "5.99"]
+              ["Crackers", "Snack"]
             ]
           },
           response = sheetRequest._prepareResponse(data);
@@ -205,7 +205,7 @@
         assert.deepEqual(response.results, [
           ["Apple", "", ""],
           ["Milk", "Drink", "3.99"],
-          ["Crackers", "Snack", "5.99"]
+          ["Crackers", "Snack", ""]
         ]);
       });
     });
@@ -228,23 +228,37 @@
       });
     });
 
-    suite("_getTotalCols", function() {
-      test("should append columns to row of data", function() {
-        var row = ["Milk", "Drink", "3.99"];
+    suite("_addMissingData", function() {
+      test("should append columns to data", function() {
+        var data = [
+          ["Apple", "Fruit"],
+          ["Milk", "Drink", "3.99"],
+          ["Crackers", "Snack"]
+        ];
 
-        sheetRequest._addCellsToRow(row, 2);
+        sheetRequest._addMissingData(data);
 
-        assert.equal(row.length, 5, "length");
-        assert.deepEqual(row, ["Milk", "Drink", "3.99", "", ""], "data");
-      });
+        assert.deepEqual(data, [
+            ["Apple", "Fruit", ""],
+            ["Milk", "Drink", "3.99"],
+            ["Crackers", "Snack", ""]
+          ]);
+        });
 
-      test("should not append columns to row of data", function() {
-        var row = ["Milk", "Drink", "3.99"];
+      test("should not append columns to data", function() {
+        var data = [
+          ["Apple", "Fruit", "0.99"],
+          ["Milk", "Drink", "3.99"],
+          ["Crackers", "Snack", "5.99"]
+        ];
 
-        sheetRequest._addCellsToRow(row, 0);
+        sheetRequest._addMissingData(data);
 
-        assert.equal(row.length, 3, "length");
-        assert.deepEqual(row, ["Milk", "Drink", "3.99"], "data");
+        assert.deepEqual(data, [
+            ["Apple", "Fruit", "0.99"],
+            ["Milk", "Drink", "3.99"],
+            ["Crackers", "Snack", "5.99"]
+          ]);
       });
     });
 
