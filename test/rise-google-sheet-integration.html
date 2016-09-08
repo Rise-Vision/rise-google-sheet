@@ -56,6 +56,35 @@
         server.respond();
       });
 
+      test("should return data with columns appended to data", function(done) {
+        var data =
+          {
+            "majorDimension": "ROWS",
+            "range": "Sheet1!A1:F999",
+            "values": [
+              ["Apple"],
+              ["Milk", "Drink", "3.99"],
+              ["Crackers", "Snack"]
+            ]
+          };
+
+        responseHandler = function(response) {
+          assert.deepEqual(response.detail.results, [
+            ["Apple", "", ""],
+            ["Milk", "Drink", "3.99"],
+            ["Crackers", "Snack", ""]
+          ]);
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
+          done();
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
+        server.respondWith([200, {}, JSON.stringify(data)]);
+        sheetRequest.go();
+        server.respond();
+      });
+
       test("should return error when server/API request responds unsuccessful", function (done) {
         responseHandler = function(response) {
 

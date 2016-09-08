@@ -238,14 +238,47 @@ the values that can be provided in this attribute and their impact, see [Google 
 
       _prepareResponse: function (resp) {
         var response = {};
-
         /*
          Provide an empty array if values property missing in response object. This can occur if any range
          values (minColumn, maxColumn, minRow, maxRow) are out of scope of the data entered in worksheet
         */
         response.results = (resp.values) ? resp.values : [];
 
+        // Workaround for this issue - https://goo.gl/rsazDP.
+        this._addMissingData(response.results);
+
         return response;
+      },
+
+      /* Get the number of columns in the result set. */
+      _getTotalCols: function(results) {
+        var totalCols = 0;
+
+        // Iterate over all rows to find the one with the most columns.
+        results.forEach(function(element) {
+          if (element.length > totalCols) {
+            totalCols = element.length;
+          }
+        });
+
+        return totalCols;
+      },
+
+      /* Add missing data to results, if applicable. */
+      _addMissingData: function(results) {
+        var count = 0,
+          totalCols = this._getTotalCols(results);
+
+        // Append cells to rows that have an incorrect number of columns.
+        results.forEach(function(element) {
+          if (element.length < totalCols) {
+            count = totalCols - element.length;
+
+            for (var i = 0; i < count; i++) {
+              element.push("");
+            }
+          }
+        });
       },
 
       _handleQuotaExceeded: function () {
