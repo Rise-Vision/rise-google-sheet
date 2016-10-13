@@ -18,9 +18,17 @@
 <script src="data/error.js"></script>
 
 <script>
+
+  var sheetRequest = document.querySelector("#request"),
+    display = "abc123";
+
+  // mock logger getting display id from Rise Cache
+  sinon.stub(sheetRequest.$.logger.$.displayId, "generateRequest", function() {
+    sheetRequest.$.logger._onDisplayIdResponse(null, {response: {displayId: display}});
+  });
+
   suite("rise-google-sheet", function() {
-    var clock, server, responseHandler,
-      sheetRequest = document.querySelector("#request");
+    var clock, server, responseHandler;
 
     // Runs for every suite.
     suiteSetup(function() {
