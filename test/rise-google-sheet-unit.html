@@ -659,24 +659,26 @@
     suite("ready", function() {
       var logStub;
 
-      suiteSetup(function() {
+      setup(function() {
         logStub = sinon.stub(sheetRequest.$.logger, "log");
       });
 
-      suiteTeardown(function() {
+      teardown(function() {
         logStub.restore();
         sheetRequest.usage = "";
       });
 
       test("should log usage", function () {
         sheetRequest.ready();
-        assert.isTrue(logStub.calledWith("component_sheet_events", {"event": "ready"}));
+        assert.equal(logStub.args[0][0],"component_sheet_events");
+        assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"version\":");
       });
 
       test("should log usage and include 'usage_type'", function() {
         sheetRequest.usage = "widget";
         sheetRequest.ready();
-        assert.isTrue(logStub.calledWith("component_sheet_events", {"event": "ready", "usage_type": "widget"}));
+        assert.equal(logStub.args[0][0],"component_sheet_events");
+        assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"usage_type\":\"widget\",\"version\":");
       });
     });
 

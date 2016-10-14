@@ -73,6 +73,10 @@ the values that can be provided in this attribute and their impact, see [Google 
   </template>
 </dom-module>
 
+<!-- build:version -->
+<script>var sheetVersion = "2.3.0";</script>
+<!-- endbuild -->
+
 <script>
   (function() {
     /* global Polymer, moment */
@@ -430,6 +434,8 @@ the values that can be provided in this attribute and their impact, see [Google 
         if (this._isValidUsage(this.usage)) {
           params.usage_type = this.usage;
         }
+
+        params.version = sheetVersion;
 
         // log usage
         this.$.logger.log(BQ_TABLE_NAME, params);
