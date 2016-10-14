@@ -19,9 +19,18 @@
 <script src="../node_modules/widget-tester/mocks/localStorage-mock.js"></script>
 
 <script>
+
+  var sheetRequest = document.querySelector("#request"),
+    display = "abc123";
+
+  // mock logger getting display id from Rise Cache
+  sinon.stub(sheetRequest.$.logger.$.displayId, "generateRequest", function() {
+    sheetRequest.$.logger._onDisplayIdResponse(null, {response: {displayId: display}});
+  });
+
   suite("rise-google-sheet", function () {
-    var clock, responded, listener,
-      sheetRequest = document.querySelector("#request");
+    var clock, responded, listener;
+
 
     suiteSetup(function() {
       clock = sinon.useFakeTimers();
@@ -34,6 +43,19 @@
     setup(function() {
       responded = false;
       localStorage.removeItem("risesheet_" + sheetRequest.key); // clear localStorage
+    });
+
+    suite("_isValidUsage", function () {
+
+      test("should return true when 'standalone' or 'widget'", function () {
+        assert.isTrue(sheetRequest._isValidUsage("widget"));
+        assert.isTrue(sheetRequest._isValidUsage("standalone"));
+      });
+
+      test("should return false when invalid", function () {
+        assert.isFalse(sheetRequest._isValidUsage("test"));
+      });
+
     });
 
     suite("_getLocalStorageKey", function () {
@@ -632,6 +654,32 @@
         done();
       });
 
+    });
+
+    suite("ready", function() {
+      var logStub;
+
+      setup(function() {
+        logStub = sinon.stub(sheetRequest.$.logger, "log");
+      });
+
+      teardown(function() {
+        logStub.restore();
+        sheetRequest.usage = "";
+      });
+
+      test("should log usage", function () {
+        sheetRequest.ready();
+        assert.equal(logStub.args[0][0],"component_sheet_events");
+        assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"version\":");
+      });
+
+      test("should log usage and include 'usage_type'", function() {
+        sheetRequest.usage = "widget";
+        sheetRequest.ready();
+        assert.equal(logStub.args[0][0],"component_sheet_events");
+        assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"usage_type\":\"widget\",\"version\":");
+      });
     });
 
   });

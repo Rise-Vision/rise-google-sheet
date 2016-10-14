@@ -1,5 +1,6 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../rise-logger/rise-logger.html">
 
 <script src="../moment/moment.js"></script>
 
@@ -62,6 +63,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 -->
 <dom-module id="rise-google-sheet">
   <template>
+    <rise-logger id="logger"></rise-logger>
     <iron-ajax id="sheet"
                handle-as="json"
                on-response="_onSheetResponse"
@@ -70,6 +72,10 @@ the values that can be provided in this attribute and their impact, see [Google 
     <content></content>
   </template>
 </dom-module>
+
+<!-- build:version -->
+<script>var sheetVersion = "2.3.0";</script>
+<!-- endbuild -->
 
 <script>
   (function() {
@@ -81,6 +87,8 @@ the values that can be provided in this attribute and their impact, see [Google 
     var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/";
 
     var LOCAL_STORAGE_BASE_NAME = "risesheet";
+
+    var BQ_TABLE_NAME = "component_sheet_events";
 
     function supportsLocalStorage() {
       try {
@@ -154,6 +162,14 @@ the values that can be provided in this attribute and their impact, see [Google 
         },
 
         /**
+         * The optional usage type for Rise Vision logging purposes. Options are "standalone" or "widget"
+         */
+        usage: {
+          type: String,
+          value: ""
+        },
+
+        /**
          * Returns the values from a spreadsheet.
          */
         results: {
@@ -193,6 +209,10 @@ the values that can be provided in this attribute and their impact, see [Google 
        * @param {Object} detail.results The cached array of sheet values if data has been cached
        * @event rise-google-sheet-quota
        */
+
+      _isValidUsage: function(usage) {
+        return usage === "standalone" || usage === "widget";
+      },
 
       _getLocalStorageKey: function () {
         return LOCAL_STORAGE_BASE_NAME + "_" + this.key + "_" + this.sheet +
@@ -400,6 +420,25 @@ the values that can be provided in this attribute and their impact, see [Google 
         this.$.sheet.params = this._getParams();
 
         this.$.sheet.generateRequest();
+      },
+
+      /**
+       * Polymer has finished its initialization. This is the entry point.
+       */
+      ready: function() {
+        var params = {
+          event: "ready"
+        };
+
+        // only include usage_type if it's a valid usage value
+        if (this._isValidUsage(this.usage)) {
+          params.usage_type = this.usage;
+        }
+
+        params.version = sheetVersion;
+
+        // log usage
+        this.$.logger.log(BQ_TABLE_NAME, params);
       },
 
       /**
