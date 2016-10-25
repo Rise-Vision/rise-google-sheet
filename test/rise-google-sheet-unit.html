@@ -58,20 +58,20 @@
 
     });
 
-    suite("_getLocalStorageKey", function () {
+    suite("_getDataKey", function () {
 
       teardown(function () {
         sheetRequest.range = "";
       });
 
-      test("should return correct local storage key using unique and required sheet key and name", function () {
-        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123_Sheet/1");
+      test("should return correct data key using unique and required sheet key and name", function () {
+        assert.equal(sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1");
       });
 
-      test("should return correct local storage key using unique sheet key and range", function () {
+      test("should return correct data key using unique sheet key and range", function () {
         sheetRequest.range = "A1:C3";
 
-        assert.equal(sheetRequest._getLocalStorageKey(), "risesheet_abc123_Sheet/1_A1:C3");
+        assert.equal(sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1_A1:C3");
       });
 
     });
@@ -80,11 +80,6 @@
       var e = {
         "stopPropagation": function () {}
       };
-
-      teardown(function () {
-        window.localStorageError = false;
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
-      });
 
       test("should fire rise-google-sheet-error when handling <iron-ajax> request error ", function(done) {
         listener = function(response) {
@@ -127,26 +122,14 @@
         sheetRequest._handleQuotaExceeded.restore();
       });
 
-      test("should remove item from localStorage if it exists", function () {
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
+      test("should call deleteItem on data component", function () {
+        var spy = sinon.spy(sheetRequest.$.data, "deleteItem");
 
         sheetRequest._onSheetError(e, errorData);
 
-        assert.isNull(localStorage.getItem(sheetRequest._getLocalStorageKey()));
-      });
+        assert.isTrue(spy.calledOnce);
 
-      test("should catch error thrown by localStorage.removeItem and log a warning in console", function () {
-        var consoleSpy = sinon.spy(console, "warn");
-
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({results: sheetData.values}));
-
-        // force an error from localStorage.removeItem()
-        window.localStorageError = true;
-
-        sheetRequest._onSheetError(e, errorData);
-
-        assert(consoleSpy.calledOnce);
-        console.warn.restore();
+        sheetRequest.$.data.deleteItem.restore();
       });
 
       test("should start a refresh timer after firing rise-google-sheet-error", function () {
@@ -170,16 +153,17 @@
 
       teardown(function() {
         sheetRequest._setResults([]);
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+        localStorage.removeItem(sheetRequest._getDataKey());
       });
 
-      test("should fire rise-google-sheet-response, set results property, and save to localStorage", function(done) {
+      test("should fire rise-google-sheet-response, set results property, and save", function(done) {
         var cachedData = {
           data: {
             results: sheetData.values
           },
           timestamp: ""
-        };
+        },
+          spy = sinon.spy(sheetRequest.$.data, "saveItem");
 
         listener = function(response) {
           responded = true;
@@ -193,9 +177,12 @@
         sheetRequest._onSheetResponse(e, resp);
 
         assert.deepEqual(sheetRequest.results, resp.response.values, "results property is set correctly");
-        assert.deepEqual(JSON.parse(localStorage.getItem(sheetRequest._getLocalStorageKey())).data, {results: sheetData.values},
-          "localStorage saved data correctly");
+        assert.equal(spy.args[0][0], sheetRequest._getDataKey());
+        assert.deepEqual(spy.args[0][1].data, cachedData.data);
+        assert.property(spy.args[0][1], "timestamp");
         assert.isTrue(responded);
+
+        sheetRequest.$.data.saveItem.restore();
 
         done();
       });
@@ -367,22 +354,19 @@
     });
 
     suite("go", function () {
-      var requestStub;
+      var getStub;
 
       setup(function() {
-        requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
+        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          return cb(null);
+        });
       });
 
       teardown(function() {
         sheetRequest.key = "abc123";
         sheetRequest.apikey = "def456";
         sheetRequest.sheet = "Sheet1";
-        sheetRequest.refresh = "";
-        sheetRequest._requestPending = false;
-        sheetRequest._refreshPending = false;
-        sheetRequest.$.sheet.generateRequest.restore();
-
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+        sheetRequest.$.data.getItem.restore();
       });
 
       test("should not make call to generate request without a value for 'key'", function () {
@@ -390,7 +374,7 @@
 
         sheetRequest.go();
 
-        assert.equal(requestStub.callCount, 0);
+        assert.equal(getStub.callCount, 0);
       });
 
       test("should not make call to generate request without a value for 'sheet'", function () {
@@ -398,75 +382,39 @@
 
         sheetRequest.go();
 
-        assert.equal(requestStub.callCount, 0);
+        assert.equal(getStub.callCount, 0);
       });
 
       test("should not make call to generate request without a value for 'apikey'", function () {
         sheetRequest.apikey = "";
         sheetRequest.go();
 
-        assert.equal(requestStub.callCount, 0);
+        assert.equal(getStub.callCount, 0);
       });
 
-      test("should ensure the correct url is provided in request to Sheets API", function () {
+      test("should get cached data and call _process with provided data", function () {
+        var processStub = sinon.stub(sheetRequest, "_process");
+
         sheetRequest.go();
 
-        assert.equal(sheetRequest.$.sheet.url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet1");
-      });
+        assert.isTrue(getStub.calledOnce);
+        assert.isTrue(processStub.calledWith(null));
 
-      test("should ensure all required params are included in request to Sheets API", function () {
-        sheetRequest.go();
-
-        assert.deepEqual(sheetRequest.$.sheet.params, {
-          "key": "def456",
-          "majorDimension": "ROWS",
-          "valueRenderOption": "FORMATTED_VALUE"
-        });
-      });
-
-      test("should generate request to Sheets API when no cached data available", function () {
-        sheetRequest.go();
-
-        assert(requestStub.calledOnce);
+        processStub.restore();
       });
 
       test("should not execute further request when there is one pending a response", function() {
+        var requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
+
         sheetRequest.go();
         sheetRequest.go();
         sheetRequest.go();
 
         assert(requestStub.calledOnce);
+
+        requestStub.restore();
       });
 
-      test("should generate request if refresh is pending", function () {
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
-        sheetRequest.refresh = 5;
-        sheetRequest._refreshPending = true;
-
-        sheetRequest.go();
-
-        assert(requestStub.calledOnce);
-      });
-
-      test("should fire rise-google-sheet-response with cached data when refresh not pending and cached data available", function(done) {
-        listener = function(response) {
-          responded = true;
-
-          assert.deepEqual(response.detail.results, sheetData.values, "detail.results property exists");
-
-          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
-        };
-
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
-
-        sheetRequest.addEventListener("rise-google-sheet-response", listener);
-        sheetRequest.go();
-
-        assert.equal(requestStub.callCount, 0);
-        assert.isTrue(responded);
-
-        done();
-      });
 
     });
 
@@ -497,80 +445,26 @@
 
     });
 
-    suite("_setCachedData", function () {
-
-      teardown(function () {
-        window.localStorageError = false;
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
-      });
-
-      test("should catch error thrown by localStorage.setItem and log a warning in console", function () {
-        var warnSpy = sinon.spy(console, "warn");
-
-        // force an error from localStorage.setItem()
-        window.localStorageError = true;
-
-        sheetRequest._setCachedData({results: sheetData.values});
-
-        assert(warnSpy.calledOnce);
-        console.warn.restore();
-      });
-
-      test("should ensure data passed in localStorage.setItem() is stringified", function () {
-        sheetRequest._setCachedData({results: sheetData.values});
-
-        var value = localStorage.getItem(sheetRequest._getLocalStorageKey());
-
-        assert.isString(value);
-      });
-
-      test("should ensure timestamp is added to cached data", function () {
-        sheetRequest._setCachedData({results: sheetData.values});
-
-        var value = localStorage.getItem(sheetRequest._getLocalStorageKey());
-
-        assert.property(JSON.parse(value), "timestamp");
-        assert.isString(JSON.parse(value).timestamp, "timestamp");
-      });
-
-    });
-
-    suite("_getCachedData", function () {
-      var value;
-
-      teardown(function () {
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
-      });
-
-      test("Should return null when no cached data exists", function () {
-        value = sheetRequest._getCachedData();
-
-        assert.isNull(value);
-      });
-
-      test("Should ensure value returned has been parsed as JSON", function () {
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
-
-        value = sheetRequest._getCachedData();
-
-        assert.isObject(value);
-      });
-    });
-
     suite("_handleNoNetwork", function () {
       var resp = {
         "error": {},
         "request": {
           "status": 0
         }
-      };
+      },
+        getStub;
 
       teardown(function() {
         sheetRequest._setResults([]);
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+        localStorage.removeItem(sheetRequest._getDataKey());
+        getStub.restore();
       });
 
       test("should fire rise-google-sheet-response when cached data exists", function (done) {
+        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          return cb({data: {results: sheetData.values}, timestamp: ""});
+        });
+
         listener = function(response) {
           responded = true;
 
@@ -579,9 +473,6 @@
 
           sheetRequest.removeEventListener("rise-google-sheet-response", listener);
         };
-
-        // ensure cached data exists
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
 
         sheetRequest.addEventListener("rise-google-sheet-response", listener);
         sheetRequest._handleNoNetwork(resp);
@@ -592,6 +483,10 @@
       });
 
       test("should fire rise-google-sheet-error when cached data doesn't exist", function (done) {
+        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          return cb(null);
+        });
+
         listener = function(response) {
           responded = true;
 
@@ -611,12 +506,19 @@
     });
 
     suite("_handleQuotaExceeded", function () {
+      var getStub;
+
       teardown(function() {
         sheetRequest._setResults([]);
-        localStorage.removeItem(sheetRequest._getLocalStorageKey());
+        localStorage.removeItem(sheetRequest._getDataKey());
+        getStub.restore();
       });
 
       test("should fire rise-google-sheet-quota", function (done) {
+        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          return cb(null);
+        });
+
         listener = function(response) {
           responded = true;
 
@@ -634,6 +536,10 @@
       });
 
       test("should fire rise-google-sheet-quota and provide cached data when it exists", function (done) {
+        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          return cb({data: {results: sheetData.values}, timestamp: ""});
+        });
+
         listener = function(response) {
           responded = true;
 
@@ -644,7 +550,7 @@
         };
 
         // ensure cached data exists
-        localStorage.setItem(sheetRequest._getLocalStorageKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
+        localStorage.setItem(sheetRequest._getDataKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
 
         sheetRequest.addEventListener("rise-google-sheet-quota", listener);
         sheetRequest._handleQuotaExceeded();
@@ -679,6 +585,75 @@
         sheetRequest.ready();
         assert.equal(logStub.args[0][0],"component_sheet_events");
         assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"usage_type\":\"widget\",\"version\":");
+      });
+    });
+
+    suite("_process", function() {
+      var requestStub;
+
+      setup(function() {
+        requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
+      });
+
+      teardown(function() {
+        sheetRequest.key = "abc123";
+        sheetRequest.apikey = "def456";
+        sheetRequest.sheet = "Sheet1";
+        sheetRequest.refresh = "";
+        sheetRequest._requestPending = false;
+        sheetRequest._refreshPending = false;
+        sheetRequest.$.sheet.generateRequest.restore();
+
+        localStorage.removeItem(sheetRequest._getDataKey());
+      });
+
+      test("should ensure the correct url is provided in request to Sheets API", function () {
+        sheetRequest._process(null);
+
+        assert.equal(sheetRequest.$.sheet.url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet1");
+      });
+
+      test("should ensure all required params are included in request to Sheets API", function () {
+        sheetRequest._process(null);
+
+        assert.deepEqual(sheetRequest.$.sheet.params, {
+          "key": "def456",
+          "majorDimension": "ROWS",
+          "valueRenderOption": "FORMATTED_VALUE"
+        });
+      });
+
+      test("should generate request to Sheets API when no cached data available", function () {
+        sheetRequest._process(null);
+
+        assert(requestStub.calledOnce);
+      });
+
+      test("should generate request if refresh is pending", function () {
+        sheetRequest.refresh = 5;
+        sheetRequest._refreshPending = true;
+
+        sheetRequest._process({data: {results: sheetData.values}, timestamp: ""});
+
+        assert(requestStub.calledOnce);
+      });
+
+      test("should fire rise-google-sheet-response with cached data when refresh not pending and cached data available", function(done) {
+        listener = function(response) {
+          responded = true;
+
+          assert.deepEqual(response.detail.results, sheetData.values, "detail.results property exists");
+
+          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+        };
+
+        sheetRequest.addEventListener("rise-google-sheet-response", listener);
+        sheetRequest._process({data: {results: sheetData.values}, timestamp: ""});
+
+        assert.equal(requestStub.callCount, 0);
+        assert.isTrue(responded);
+
+        done();
       });
     });
 

@@ -47,7 +47,19 @@
     });
 
     suite("request data", function() {
+
+      suiteSetup(function() {
+        sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          cb(null);
+        });
+      });
+
+      suiteTeardown(function() {
+        sheetRequest.$.data.getItem.restore();
+      });
+
       test("should return an Array of cell objects when server/API request responds successfully", function(done) {
+
         responseHandler = function(response) {
 
           assert.property(response.detail, "results", "detail.results property exists");
@@ -55,6 +67,7 @@
           assert.deepEqual(response.detail.results, sheetData.values);
 
           sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
+
           done();
         };
 
@@ -137,6 +150,17 @@
     });
 
     suite("offline cached data", function() {
+
+      suiteSetup(function() {
+        sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
+          return cb({data: {results: sheetData.values}, timestamp: ""});
+        });
+      });
+
+      suiteTeardown(function() {
+        sheetRequest.$.data.getItem.restore();
+      });
+
       test("should return cached Array of values when making offline request", function (done) {
         responseHandler = function(response) {
 
