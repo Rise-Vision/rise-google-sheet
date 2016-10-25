@@ -1,6 +1,7 @@
 <link rel="import" href="../polymer/polymer.html">
 <link rel="import" href="../iron-ajax/iron-ajax.html">
 <link rel="import" href="../rise-logger/rise-logger.html">
+<link rel="import" href="../rise-data/rise-data.html">
 
 <script src="../moment/moment.js"></script>
 
@@ -64,6 +65,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 <dom-module id="rise-google-sheet">
   <template>
     <rise-logger id="logger"></rise-logger>
+    <rise-data id="data" endpoint="spreadsheets"></rise-data>
     <iron-ajax id="sheet"
                handle-as="json"
                on-response="_onSheetResponse"
@@ -86,17 +88,9 @@ the values that can be provided in this attribute and their impact, see [Google 
 
     var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/";
 
-    var LOCAL_STORAGE_BASE_NAME = "risesheet";
+    var DATAKEY_BASE_NAME = "risesheet";
 
     var BQ_TABLE_NAME = "component_sheet_events";
-
-    function supportsLocalStorage() {
-      try {
-        return "localStorage" in window && window.localStorage !== null;
-      } catch (e) {
-        return false;
-      }
-    }
 
     Polymer({
       is: "rise-google-sheet",
@@ -214,32 +208,9 @@ the values that can be provided in this attribute and their impact, see [Google 
         return usage === "standalone" || usage === "widget";
       },
 
-      _getLocalStorageKey: function () {
-        return LOCAL_STORAGE_BASE_NAME + "_" + this.key + "_" + this.sheet +
+      _getDataKey: function () {
+        return DATAKEY_BASE_NAME + "_" + this.key + "_" + this.sheet +
           (this.range === "" ? "" : "_" + this.range);
-      },
-
-      _getCachedData: function () {
-        if (supportsLocalStorage()) {
-          // retrieve cached data and parse back
-          return JSON.parse(localStorage.getItem(this._getLocalStorageKey()));
-        }
-
-        return null;
-      },
-
-      _setCachedData: function (data) {
-        var cacheObj = {};
-
-        if (supportsLocalStorage()) {
-          cacheObj.data = data;
-          cacheObj.timestamp = moment().format();
-          try {
-            localStorage.setItem(this._getLocalStorageKey(), JSON.stringify(cacheObj));
-          } catch(e) {
-            console.warn(e.message);
-          }
-        }
       },
 
       _startTimer: function() {
@@ -302,30 +273,33 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _handleQuotaExceeded: function () {
-        var cachedData = this._getCachedData();
+        var self = this;
 
-        if (cachedData) {
-          this._setResults(cachedData.data.results);
-        }
+        this.$.data.getItem(this._getDataKey(), function (cachedData) {
+          if (cachedData) {
+            self._setResults(cachedData.data.results);
+          }
 
-        this.fire("rise-google-sheet-quota", (cachedData) ? cachedData.data : null);
+          self.fire("rise-google-sheet-quota", (cachedData) ? cachedData.data : null);
+        });
 
         this._requestPending = false;
         this._startTimer();
-
       },
 
       _handleNoNetwork: function (resp) {
-        var cachedData = this._getCachedData();
+        var self = this;
 
-        if (cachedData) {
-          this._setResults(cachedData.data.results);
+        this.$.data.getItem(this._getDataKey(), function (cachedData) {
+          if (cachedData) {
+            self._setResults(cachedData.data.results);
 
-          this.fire("rise-google-sheet-response", cachedData.data);
-        }
-        else {
-          this.fire("rise-google-sheet-error", resp);
-        }
+            self.fire("rise-google-sheet-response", cachedData.data);
+          }
+          else {
+            self.fire("rise-google-sheet-error", resp);
+          }
+        });
 
         this._requestPending = false;
         this._startTimer();
@@ -347,14 +321,8 @@ the values that can be provided in this attribute and their impact, see [Google 
               // reset the value of cells
               this._setResults([]);
 
-              // if cached data exists, remove it
-              if (this._getCachedData()) {
-                try {
-                  localStorage.removeItem(this._getLocalStorageKey());
-                } catch (ex) {
-                  console.warn(ex.message);
-                }
-              }
+              // delete cached data
+              this.$.data.deleteItem(this._getDataKey());
 
               this.fire("rise-google-sheet-error", resp);
 
@@ -368,7 +336,8 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _onSheetResponse: function(e, resp) {
-        var responseData;
+        var responseData,
+          cacheObj = {};
 
         // in case there are other instances of rise-google-sheet
         e.stopPropagation();
@@ -376,8 +345,10 @@ the values that can be provided in this attribute and their impact, see [Google 
         if (resp && resp.response) {
           responseData = this._prepareResponse(resp.response);
 
-          // cache the data if possible
-          this._setCachedData(responseData);
+          cacheObj.data = responseData;
+          cacheObj.timestamp = moment().format();
+
+          this.$.data.saveItem(this._getDataKey(), cacheObj);
 
           // use setter method to apply results value because this property is read only
           this._setResults(responseData.results);
@@ -422,40 +393,11 @@ the values that can be provided in this attribute and their impact, see [Google 
         this.$.sheet.generateRequest();
       },
 
-      /**
-       * Polymer has finished its initialization. This is the entry point.
-       */
-      ready: function() {
-        var params = {
-          event: "ready"
-        };
-
-        // only include usage_type if it's a valid usage value
-        if (this._isValidUsage(this.usage)) {
-          params.usage_type = this.usage;
-        }
-
-        params.version = sheetVersion;
-
-        // log usage
-        this.$.logger.log(BQ_TABLE_NAME, params);
-      },
-
-      /**
-       * Performs a request to obtain the Google Sheet data
-       *
-       */
-      go: function() {
-        var cachedData = this._getCachedData(),
-          refreshVal = parseInt(this.refresh, 10),
+      _process: function(cachedData) {
+        var refreshVal = parseInt(this.refresh, 10),
           makeRequestFn = this._makeRequest,
           self = this,
           then, now, diff;
-
-        // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
-        if (this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending) {
-          return;
-        }
 
         if (this._refreshPending || !cachedData) {
           // refresh timer completed or there is no cached data available, make the request
@@ -494,6 +436,42 @@ the values that can be provided in this attribute and their impact, see [Google 
           // provide cached data for the response
           this.fire("rise-google-sheet-response", cachedData.data);
         }
+      },
+
+      /**
+       * Polymer has finished its initialization. This is the entry point.
+       */
+      ready: function() {
+        var params = {
+          event: "ready"
+        };
+
+        // only include usage_type if it's a valid usage value
+        if (this._isValidUsage(this.usage)) {
+          params.usage_type = this.usage;
+        }
+
+        params.version = sheetVersion;
+
+        // log usage
+        this.$.logger.log(BQ_TABLE_NAME, params);
+      },
+
+      /**
+       * Performs a request to obtain the Google Sheet data
+       *
+       */
+      go: function() {
+        var self = this;
+
+        // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
+        if (this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending) {
+          return;
+        }
+
+        this.$.data.getItem(this._getDataKey(), function (cachedData) {
+          self._process(cachedData);
+        });
 
       }
 
