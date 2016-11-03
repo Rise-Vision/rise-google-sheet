@@ -52,6 +52,8 @@
         sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
           cb(null);
         });
+
+        sheetRequest._onDataPingReceived();
       });
 
       suiteTeardown(function() {
@@ -155,6 +157,8 @@
         sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
           return cb({data: {results: sheetData.values}, timestamp: ""});
         });
+
+        sheetRequest._onDataPingReceived();
       });
 
       suiteTeardown(function() {

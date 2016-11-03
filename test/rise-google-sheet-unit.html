@@ -189,6 +189,37 @@
 
     });
 
+    suite("_onDataPingReceived", function() {
+
+      setup(function() {
+        sheetRequest._dataPingReceived = false;
+      });
+
+      suiteTeardown(function() {
+        sheetRequest._dataPingReceived = false;
+        sheetRequest._requestWaiting = false;
+      });
+
+      test("should set value", function() {
+        sheetRequest._onDataPingReceived();
+
+        assert.isTrue(sheetRequest._dataPingReceived);
+      });
+
+      test("should call go() if request waiting", function() {
+        var goStub = sinon.stub(sheetRequest, "go");
+
+        sheetRequest._requestWaiting = true;
+        sheetRequest._onDataPingReceived();
+
+        assert.isFalse(sheetRequest._requestWaiting);
+        assert.isTrue(goStub.calledOnce);
+
+        goStub.restore();
+      });
+
+    });
+
     suite("_prepareResponse", function() {
       test("should return an Array of values", function() {
         var response = sheetRequest._prepareResponse(sheetData);
@@ -366,6 +397,8 @@
         sheetRequest.key = "abc123";
         sheetRequest.apikey = "def456";
         sheetRequest.sheet = "Sheet1";
+        sheetRequest._dataPingReceived = false;
+        sheetRequest._requestWaiting = false;
         sheetRequest.$.data.getItem.restore();
       });
 
@@ -392,9 +425,17 @@
         assert.equal(getStub.callCount, 0);
       });
 
+      test("should not make call to generate request if data ping has not been received", function () {
+        sheetRequest.go();
+
+        assert.equal(getStub.callCount, 0);
+        assert.isTrue(sheetRequest._requestWaiting);
+      });
+
       test("should get cached data and call _process with provided data", function () {
         var processStub = sinon.stub(sheetRequest, "_process");
 
+        sheetRequest._dataPingReceived = true;
         sheetRequest.go();
 
         assert.isTrue(getStub.calledOnce);
@@ -406,6 +447,7 @@
       test("should not execute further request when there is one pending a response", function() {
         var requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
 
+        sheetRequest._dataPingReceived = true;
         sheetRequest.go();
         sheetRequest.go();
         sheetRequest.go();
