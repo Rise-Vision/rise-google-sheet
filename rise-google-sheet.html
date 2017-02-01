@@ -80,19 +80,16 @@ the values that can be provided in this attribute and their impact, see [Google 
 <!-- endbuild -->
 
 <script>
-  (function() {
-    /* global Polymer, moment */
-    /* jshint newcap: false */
+  ( function() {
+    /* global Polymer, moment, sheetVersion */
 
     "use strict";
 
-    var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/";
+    var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/",
+      DATAKEY_BASE_NAME = "risesheet",
+      BQ_TABLE_NAME = "component_sheet_events";
 
-    var DATAKEY_BASE_NAME = "risesheet";
-
-    var BQ_TABLE_NAME = "component_sheet_events";
-
-    Polymer({
+    Polymer( {
       is: "rise-google-sheet",
 
       properties: {
@@ -168,7 +165,9 @@ the values that can be provided in this attribute and their impact, see [Google 
          */
         results: {
           type: Array,
-          value: function() { return []; },
+          value: function() {
+            return [];
+          },
           readOnly: true,
           notify: true
         }
@@ -208,156 +207,159 @@ the values that can be provided in this attribute and their impact, see [Google 
        * @event rise-google-sheet-quota
        */
 
-      _isValidUsage: function(usage) {
+      _isValidUsage: function( usage ) {
         return usage === "standalone" || usage === "widget";
       },
 
-      _getDataKey: function () {
+      _getDataKey: function() {
         return DATAKEY_BASE_NAME + "_" + this.key + "_" + this.sheet +
-          (this.range === "" ? "" : "_" + this.range);
+          ( this.range === "" ? "" : "_" + this.range );
       },
 
       _startTimer: function() {
         var refreshFn = this.go,
           self = this;
 
-        this.refresh = parseInt(this.refresh, 10);
+        this.refresh = parseInt( this.refresh, 10 );
 
-        if (!isNaN(this.refresh) && this.refresh !== 0) {
-          this.debounce("refresh", function () {
+        if ( !isNaN( this.refresh ) && this.refresh !== 0 ) {
+          this.debounce( "refresh", function() {
             self._refreshPending = true;
-            refreshFn.call(self);
-          }, this.refresh * 60000);
+            refreshFn.call( self );
+          }, this.refresh * 60000 );
         }
       },
 
-      _prepareResponse: function (resp) {
+      _prepareResponse: function( resp ) {
         var response = {};
         /*
          Provide an empty array if values property missing in response object. This can occur if any range
          values (minColumn, maxColumn, minRow, maxRow) are out of scope of the data entered in worksheet
-        */
-        response.results = (resp.values) ? resp.values : [];
+         */
+
+        response.results = ( resp.values ) ? resp.values : [];
 
         // Workaround for this issue - https://goo.gl/rsazDP.
-        this._addMissingData(response.results);
+        this._addMissingData( response.results );
 
         return response;
       },
 
       /* Get the number of columns in the result set. */
-      _getTotalCols: function(results) {
+      _getTotalCols: function( results ) {
         var totalCols = 0;
 
         // Iterate over all rows to find the one with the most columns.
-        results.forEach(function(element) {
-          if (element.length > totalCols) {
+        results.forEach( function( element ) {
+          if ( element.length > totalCols ) {
             totalCols = element.length;
           }
-        });
+        } );
 
         return totalCols;
       },
 
       /* Add missing data to results, if applicable. */
-      _addMissingData: function(results) {
+      _addMissingData: function( results ) {
         var count = 0,
-          totalCols = this._getTotalCols(results);
+          totalCols = this._getTotalCols( results ),
+          i;
 
         // Append cells to rows that have an incorrect number of columns.
-        results.forEach(function(element) {
-          if (element.length < totalCols) {
+        results.forEach( function( element ) {
+          if ( element.length < totalCols ) {
             count = totalCols - element.length;
 
-            for (var i = 0; i < count; i++) {
-              element.push("");
+            for ( i = 0; i < count; i++ ) {
+              element.push( "" );
             }
           }
-        });
+        } );
       },
 
-      _handleQuotaExceeded: function () {
+      _handleQuotaExceeded: function() {
         var self = this;
 
-        this.$.data.getItem(this._getDataKey(), function (cachedData) {
-          if (cachedData) {
-            self._setResults(cachedData.data.results);
+        this.$.data.getItem( this._getDataKey(), function( cachedData ) {
+          if ( cachedData ) {
+            self._setResults( cachedData.data.results );
           }
 
-          self.fire("rise-google-sheet-quota", (cachedData) ? cachedData.data : null);
-        });
+          self.fire( "rise-google-sheet-quota", ( cachedData ) ? cachedData.data : null );
+        } );
 
         this._requestPending = false;
         this._startTimer();
       },
 
-      _handleNoNetwork: function (resp) {
+      _handleNoNetwork: function( resp ) {
         var self = this;
 
-        this.$.data.getItem(this._getDataKey(), function (cachedData) {
-          if (cachedData) {
-            self._setResults(cachedData.data.results);
+        this.$.data.getItem( this._getDataKey(), function( cachedData ) {
+          if ( cachedData ) {
+            self._setResults( cachedData.data.results );
 
-            self.fire("rise-google-sheet-response", cachedData.data);
+            self.fire( "rise-google-sheet-response", cachedData.data );
+          } else {
+            self.fire( "rise-google-sheet-error", resp );
           }
-          else {
-            self.fire("rise-google-sheet-error", resp);
-          }
-        });
+        } );
 
         this._requestPending = false;
         this._startTimer();
       },
 
-      _onSheetError: function(e, resp) {
+      _onSheetError: function( e, resp ) {
         // in case there are other instances of rise-google-sheet
         e.stopPropagation();
 
-        if (resp.request) {
-          switch (resp.request.status) {
+        if ( resp.request ) {
+          /* eslint-disable indent */
+          switch ( resp.request.status ) {
             case 0:
-              this._handleNoNetwork(resp);
+              this._handleNoNetwork( resp );
               break;
             case 429:
               this._handleQuotaExceeded();
               break;
             default:
               // reset the value of cells
-              this._setResults([]);
+              this._setResults( [] );
 
               // delete cached data
-              this.$.data.deleteItem(this._getDataKey());
+              this.$.data.deleteItem( this._getDataKey() );
 
-              this.fire("rise-google-sheet-error", resp);
+              this.fire( "rise-google-sheet-error", resp );
 
               this._requestPending = false;
               this._startTimer();
 
               break;
           }
+          /* eslint-enable indent */
         }
 
       },
 
-      _onSheetResponse: function(e, resp) {
+      _onSheetResponse: function( e, resp ) {
         var responseData,
           cacheObj = {};
 
         // in case there are other instances of rise-google-sheet
         e.stopPropagation();
 
-        if (resp && resp.response) {
-          responseData = this._prepareResponse(resp.response);
+        if ( resp && resp.response ) {
+          responseData = this._prepareResponse( resp.response );
 
           cacheObj.data = responseData;
           cacheObj.timestamp = moment().format();
 
-          this.$.data.saveItem(this._getDataKey(), cacheObj);
+          this.$.data.saveItem( this._getDataKey(), cacheObj );
 
           // use setter method to apply results value because this property is read only
-          this._setResults(responseData.results);
+          this._setResults( responseData.results );
 
-          this.fire("rise-google-sheet-response", responseData);
+          this.fire( "rise-google-sheet-response", responseData );
         }
 
         this._requestPending = false;
@@ -368,7 +370,7 @@ the values that can be provided in this attribute and their impact, see [Google 
       _onDataPingReceived: function() {
         this._dataPingReceived = true;
 
-        if (this._requestWaiting) {
+        if ( this._requestWaiting ) {
           this._requestWaiting = false;
           this.go();
         }
@@ -388,11 +390,11 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _getRange: function() {
-        return (this.range === "") ? "" : "!" + this.range;
+        return ( this.range === "" ) ? "" : "!" + this.range;
       },
 
       _getUrl: function() {
-        return API_BASE_URL + this.key + "/values/" + encodeURIComponent(this.sheet) + this._getRange();
+        return API_BASE_URL + this.key + "/values/" + encodeURIComponent( this.sheet ) + this._getRange();
       },
 
       _makeRequest: function() {
@@ -406,48 +408,48 @@ the values that can be provided in this attribute and their impact, see [Google 
         this.$.sheet.generateRequest();
       },
 
-      _process: function(cachedData) {
-        var refreshVal = parseInt(this.refresh, 10),
+      _process: function( cachedData ) {
+        var refreshVal = parseInt( this.refresh, 10 ),
           makeRequestFn = this._makeRequest,
           self = this,
-          then, now, diff;
+          then,
+          now,
+          diff;
 
-        if (this._refreshPending || !cachedData) {
+        if ( this._refreshPending || !cachedData ) {
           // refresh timer completed or there is no cached data available, make the request
           this._refreshPending = false;
           this._makeRequest();
-        }
-        else {
-          if (this._initialGo) {
+        } else {
+          if ( this._initialGo ) {
             this._initialGo = false;
 
             // first time component is executing go()
 
-            if (!isNaN(refreshVal) && refreshVal !== 0) {
-              then = moment(cachedData.timestamp);
+            if ( !isNaN( refreshVal ) && refreshVal !== 0 ) {
+              then = moment( cachedData.timestamp );
               now = moment();
-              diff = now.diff(then, "minutes");
+              diff = now.diff( then, "minutes" );
 
               // compare refresh value to amount of time that has passed since last timestamp in cached data
 
-              if (diff >= refreshVal) {
+              if ( diff >= refreshVal ) {
                 // more time has gone by than the assigned refresh value, make the request
                 this._makeRequest();
                 return;
-              }
-              else {
+              } else {
                 // start a refresh timer with the remaining refresh time left as the interval
-                this.debounce("refresh", function () {
-                  makeRequestFn.call(self);
-                }, (refreshVal - diff) * 60000);
+                this.debounce( "refresh", function() {
+                  makeRequestFn.call( self );
+                }, ( refreshVal - diff ) * 60000 );
               }
             }
           }
 
-          this._setResults(cachedData.data.results);
+          this._setResults( cachedData.data.results );
 
           // provide cached data for the response
-          this.fire("rise-google-sheet-response", cachedData.data);
+          this.fire( "rise-google-sheet-response", cachedData.data );
         }
       },
 
@@ -456,24 +458,24 @@ the values that can be provided in this attribute and their impact, see [Google 
        */
       ready: function() {
         var params = {
-          event: "ready"
-        },
+            event: "ready"
+          },
           self = this;
 
         // listen for data ping received
-        this.$.data.addEventListener("rise-data-ping-received", function() {
+        this.$.data.addEventListener( "rise-data-ping-received", function() {
           self._onDataPingReceived();
-        });
+        } );
 
         // only include usage_type if it's a valid usage value
-        if (this._isValidUsage(this.usage)) {
+        if ( this._isValidUsage( this.usage ) ) {
           params.usage_type = this.usage;
         }
 
         params.version = sheetVersion;
 
         // log usage
-        this.$.logger.log(BQ_TABLE_NAME, params);
+        this.$.logger.log( BQ_TABLE_NAME, params );
       },
 
       /**
@@ -484,20 +486,20 @@ the values that can be provided in this attribute and their impact, see [Google 
         var self = this;
 
         // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
-        if (this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending) {
+        if ( this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending ) {
           return;
         }
 
-        if (this._dataPingReceived) {
-          this.$.data.getItem(this._getDataKey(), function (cachedData) {
-            self._process(cachedData);
-          });
+        if ( this._dataPingReceived ) {
+          this.$.data.getItem( this._getDataKey(), function( cachedData ) {
+            self._process( cachedData );
+          } );
         } else {
           this._requestWaiting = true;
         }
 
       }
 
-    });
-  })();
+    } );
+  } )();
 </script>

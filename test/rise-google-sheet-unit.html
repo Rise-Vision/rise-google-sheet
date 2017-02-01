@@ -19,290 +19,291 @@
 <script src="../node_modules/widget-tester/mocks/localStorage-mock.js"></script>
 
 <script>
+  /* global sinon, suite, test, assert, setup, teardown, suiteSetup, suiteTeardown, sheetData, errorData, _ */
 
-  var sheetRequest = document.querySelector("#request"),
+  var sheetRequest = document.querySelector( "#request" ),
     display = "abc123";
 
   // mock logger getting display id from Rise Cache
-  sinon.stub(sheetRequest.$.logger.$.displayId, "generateRequest", function() {
-    sheetRequest.$.logger._onDisplayIdResponse(null, {response: {displayId: display}});
-  });
+  sinon.stub( sheetRequest.$.logger.$.displayId, "generateRequest", function() {
+    sheetRequest.$.logger._onDisplayIdResponse( null, { response: { displayId: display } } );
+  } );
 
-  suite("rise-google-sheet", function () {
-    var clock, responded, listener;
+  suite( "rise-google-sheet", function() {
+    var clock,
+      responded,
+      listener;
 
 
-    suiteSetup(function() {
+    suiteSetup( function() {
       clock = sinon.useFakeTimers();
-    });
+    } );
 
-    suiteTeardown(function() {
+    suiteTeardown( function() {
       clock.restore();
-    });
+    } );
 
-    setup(function() {
+    setup( function() {
       responded = false;
-      localStorage.removeItem("risesheet_" + sheetRequest.key); // clear localStorage
-    });
+      localStorage.removeItem( "risesheet_" + sheetRequest.key );
+    } );
 
-    suite("_isValidUsage", function () {
+    suite( "_isValidUsage", function() {
 
-      test("should return true when 'standalone' or 'widget'", function () {
-        assert.isTrue(sheetRequest._isValidUsage("widget"));
-        assert.isTrue(sheetRequest._isValidUsage("standalone"));
-      });
+      test( "should return true when 'standalone' or 'widget'", function() {
+        assert.isTrue( sheetRequest._isValidUsage( "widget" ) );
+        assert.isTrue( sheetRequest._isValidUsage( "standalone" ) );
+      } );
 
-      test("should return false when invalid", function () {
-        assert.isFalse(sheetRequest._isValidUsage("test"));
-      });
+      test( "should return false when invalid", function() {
+        assert.isFalse( sheetRequest._isValidUsage( "test" ) );
+      } );
 
-    });
+    } );
 
-    suite("_getDataKey", function () {
+    suite( "_getDataKey", function() {
 
-      teardown(function () {
+      teardown( function() {
         sheetRequest.range = "";
-      });
+      } );
 
-      test("should return correct data key using unique and required sheet key and name", function () {
-        assert.equal(sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1");
-      });
+      test( "should return correct data key using unique and required sheet key and name", function() {
+        assert.equal( sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1" );
+      } );
 
-      test("should return correct data key using unique sheet key and range", function () {
+      test( "should return correct data key using unique sheet key and range", function() {
         sheetRequest.range = "A1:C3";
 
-        assert.equal(sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1_A1:C3");
-      });
+        assert.equal( sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1_A1:C3" );
+      } );
 
-    });
+    } );
 
-    suite("_onSheetError", function () {
+    suite( "_onSheetError", function() {
       var e = {
-        "stopPropagation": function () {}
+        "stopPropagation": function() {}
       };
 
-      test("should fire rise-google-sheet-error when handling <iron-ajax> request error ", function(done) {
-        listener = function(response) {
+      test( "should fire rise-google-sheet-error when handling <iron-ajax> request error ", function( done ) {
+        listener = function() {
           responded = true;
 
-          sheetRequest.removeEventListener("rise-google-sheet-error", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-error", listener );
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-error", listener);
-        sheetRequest._onSheetError(e, errorData);
-        assert.isTrue(responded);
+        sheetRequest.addEventListener( "rise-google-sheet-error", listener );
+        sheetRequest._onSheetError( e, errorData );
+        assert.isTrue( responded );
         done();
-      });
+      } );
 
-      test("should call _handleNoNetwork if request status is 0", function () {
-        var noNetworkStub = sinon.stub(sheetRequest, "_handleNoNetwork");
+      test( "should call _handleNoNetwork if request status is 0", function() {
+        var noNetworkStub = sinon.stub( sheetRequest, "_handleNoNetwork" );
 
-        sheetRequest._onSheetError(e, {
+        sheetRequest._onSheetError( e, {
           "request": {
             "status": 0
           }
-        });
+        } );
 
-        assert.isTrue(noNetworkStub.calledOnce);
+        assert.isTrue( noNetworkStub.calledOnce );
 
         sheetRequest._handleNoNetwork.restore();
-      });
+      } );
 
-      test("should call _handleQuotaExceeded if request status is 429", function () {
-        var quotaStub = sinon.stub(sheetRequest, "_handleQuotaExceeded");
+      test( "should call _handleQuotaExceeded if request status is 429", function() {
+        var quotaStub = sinon.stub( sheetRequest, "_handleQuotaExceeded" );
 
-        sheetRequest._onSheetError(e, {
+        sheetRequest._onSheetError( e, {
           "request": {
             "status": 429
           }
-        });
+        } );
 
-        assert.isTrue(quotaStub.calledOnce);
+        assert.isTrue( quotaStub.calledOnce );
 
         sheetRequest._handleQuotaExceeded.restore();
-      });
+      } );
 
-      test("should call deleteItem on data component", function () {
-        var spy = sinon.spy(sheetRequest.$.data, "deleteItem");
+      test( "should call deleteItem on data component", function() {
+        var spy = sinon.spy( sheetRequest.$.data, "deleteItem" );
 
-        sheetRequest._onSheetError(e, errorData);
+        sheetRequest._onSheetError( e, errorData );
 
-        assert.isTrue(spy.calledOnce);
+        assert.isTrue( spy.calledOnce );
 
         sheetRequest.$.data.deleteItem.restore();
-      });
+      } );
 
-      test("should start a refresh timer after firing rise-google-sheet-error", function () {
-        var timerStub = sinon.stub(sheetRequest, "_startTimer");
+      test( "should start a refresh timer after firing rise-google-sheet-error", function() {
+        var timerStub = sinon.stub( sheetRequest, "_startTimer" );
 
-        sheetRequest._onSheetError(e, errorData);
-        assert(timerStub.calledOnce);
+        sheetRequest._onSheetError( e, errorData );
+        assert( timerStub.calledOnce );
 
         sheetRequest._startTimer.restore();
-      });
+      } );
 
-    });
+    } );
 
-    suite("_onSheetResponse", function () {
+    suite( "_onSheetResponse", function() {
       var resp = {
-          "response": _.clone(sheetData)
+          "response": _.clone( sheetData )
         },
         e = {
-          "stopPropagation": function () {}
+          "stopPropagation": function() {}
         };
 
-      teardown(function() {
-        sheetRequest._setResults([]);
-        localStorage.removeItem(sheetRequest._getDataKey());
-      });
+      teardown( function() {
+        sheetRequest._setResults( [] );
+        localStorage.removeItem( sheetRequest._getDataKey() );
+      } );
 
-      test("should fire rise-google-sheet-response, set results property, and save", function(done) {
+      test( "should fire rise-google-sheet-response, set results property, and save", function( done ) {
         var cachedData = {
-          data: {
-            results: sheetData.values
+            data: {
+              results: sheetData.values
+            },
+            timestamp: ""
           },
-          timestamp: ""
-        },
-          spy = sinon.spy(sheetRequest.$.data, "saveItem");
+          spy = sinon.spy( sheetRequest.$.data, "saveItem" );
 
-        listener = function(response) {
+        listener = function( response ) {
           responded = true;
 
-          assert.property(response.detail, "results", "detail.results property exists");
+          assert.property( response.detail, "results", "detail.results property exists" );
 
-          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-response", listener );
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-response", listener);
-        sheetRequest._onSheetResponse(e, resp);
+        sheetRequest.addEventListener( "rise-google-sheet-response", listener );
+        sheetRequest._onSheetResponse( e, resp );
 
-        assert.deepEqual(sheetRequest.results, resp.response.values, "results property is set correctly");
-        assert.equal(spy.args[0][0], sheetRequest._getDataKey());
-        assert.deepEqual(spy.args[0][1].data, cachedData.data);
-        assert.property(spy.args[0][1], "timestamp");
-        assert.isTrue(responded);
+        assert.deepEqual( sheetRequest.results, resp.response.values, "results property is set correctly" );
+        assert.equal( spy.args[ 0 ][ 0 ], sheetRequest._getDataKey() );
+        assert.deepEqual( spy.args[ 0 ][ 1 ].data, cachedData.data );
+        assert.property( spy.args[ 0 ][ 1 ], "timestamp" );
+        assert.isTrue( responded );
 
         sheetRequest.$.data.saveItem.restore();
 
         done();
-      });
+      } );
 
-    });
+    } );
 
-    suite("_onDataPingReceived", function() {
+    suite( "_onDataPingReceived", function() {
 
-      setup(function() {
+      setup( function() {
         sheetRequest._dataPingReceived = false;
-      });
+      } );
 
-      suiteTeardown(function() {
+      suiteTeardown( function() {
         sheetRequest._dataPingReceived = false;
         sheetRequest._requestWaiting = false;
-      });
+      } );
 
-      test("should set value", function() {
+      test( "should set value", function() {
         sheetRequest._onDataPingReceived();
 
-        assert.isTrue(sheetRequest._dataPingReceived);
-      });
+        assert.isTrue( sheetRequest._dataPingReceived );
+      } );
 
-      test("should call go() if request waiting", function() {
-        var goStub = sinon.stub(sheetRequest, "go");
+      test( "should call go() if request waiting", function() {
+        var goStub = sinon.stub( sheetRequest, "go" );
 
         sheetRequest._requestWaiting = true;
         sheetRequest._onDataPingReceived();
 
-        assert.isFalse(sheetRequest._requestWaiting);
-        assert.isTrue(goStub.calledOnce);
+        assert.isFalse( sheetRequest._requestWaiting );
+        assert.isTrue( goStub.calledOnce );
 
         goStub.restore();
-      });
+      } );
 
-    });
+    } );
 
-    suite("_prepareResponse", function() {
-      test("should return an Array of values", function() {
-        var response = sheetRequest._prepareResponse(sheetData);
+    suite( "_prepareResponse", function() {
+      test( "should return an Array of values", function() {
+        var response = sheetRequest._prepareResponse( sheetData );
 
-        assert.property(response, "results");
-        assert.isArray(response.results);
-        assert.deepEqual(response.results, sheetData.values);
-      });
+        assert.property( response, "results" );
+        assert.isArray( response.results );
+        assert.deepEqual( response.results, sheetData.values );
+      } );
 
-      test("should append columns to data", function() {
-        var data =
-          {
+      test( "should append columns to data", function() {
+        var data = {
             "majorDimension": "ROWS",
             "range": "Sheet1!A1:F999",
             "values": [
-              ["Apple"],
-              ["Milk", "Drink", "3.99"],
-              ["Crackers", "Snack"]
-            ]
+            [ "Apple" ],
+            [ "Milk", "Drink", "3.99" ],
+            [ "Crackers", "Snack" ] ]
           },
-          response = sheetRequest._prepareResponse(data);
+          response = sheetRequest._prepareResponse( data );
 
-        assert.deepEqual(response.results, [
-          ["Apple", "", ""],
-          ["Milk", "Drink", "3.99"],
-          ["Crackers", "Snack", ""]
-        ]);
-      });
-    });
+        assert.deepEqual( response.results, [
+          [ "Apple", "", "" ],
+          [ "Milk", "Drink", "3.99" ],
+          [ "Crackers", "Snack", "" ]
+        ] );
+      } );
+    } );
 
-    suite("_getTotalCols", function() {
-      test("should return the total columns given a set of data with the same number of columns", function() {
-        var totalCols = sheetRequest._getTotalCols(sheetData.values);
+    suite( "_getTotalCols", function() {
+      test( "should return the total columns given a set of data with the same number of columns", function() {
+        var totalCols = sheetRequest._getTotalCols( sheetData.values );
 
-        assert.equal(totalCols, 3);
-      });
+        assert.equal( totalCols, 3 );
+      } );
 
-      test("should return the total columns given a set of data with different numbers of columns", function() {
-        var totalCols = sheetRequest._getTotalCols([
-          ["Apple", "Fruit"],
-          ["Milk", "Drink", "3.99"],
-          ["Crackers", "Snack", "5.99"]
-        ]);
+      test( "should return the total columns given a set of data with different numbers of columns", function() {
+        var totalCols = sheetRequest._getTotalCols( [
+          [ "Apple", "Fruit" ],
+          [ "Milk", "Drink", "3.99" ],
+          [ "Crackers", "Snack", "5.99" ]
+        ] );
 
-        assert.equal(totalCols, 3);
-      });
-    });
+        assert.equal( totalCols, 3 );
+      } );
+    } );
 
-    suite("_addMissingData", function() {
-      test("should append columns to data", function() {
+    suite( "_addMissingData", function() {
+      test( "should append columns to data", function() {
         var data = [
-          ["Apple", "Fruit"],
-          ["Milk", "Drink", "3.99"],
-          ["Crackers", "Snack"]
+          [ "Apple", "Fruit" ],
+          [ "Milk", "Drink", "3.99" ],
+          [ "Crackers", "Snack" ]
         ];
 
-        sheetRequest._addMissingData(data);
+        sheetRequest._addMissingData( data );
 
-        assert.deepEqual(data, [
-            ["Apple", "Fruit", ""],
-            ["Milk", "Drink", "3.99"],
-            ["Crackers", "Snack", ""]
-          ]);
-        });
+        assert.deepEqual( data, [
+          [ "Apple", "Fruit", "" ],
+          [ "Milk", "Drink", "3.99" ],
+          [ "Crackers", "Snack", "" ]
+        ] );
+      } );
 
-      test("should not append columns to data", function() {
+      test( "should not append columns to data", function() {
         var data = [
-          ["Apple", "Fruit", "0.99"],
-          ["Milk", "Drink", "3.99"],
-          ["Crackers", "Snack", "5.99"]
+          [ "Apple", "Fruit", "0.99" ],
+          [ "Milk", "Drink", "3.99" ],
+          [ "Crackers", "Snack", "5.99" ]
         ];
 
-        sheetRequest._addMissingData(data);
+        sheetRequest._addMissingData( data );
 
-        assert.deepEqual(data, [
-            ["Apple", "Fruit", "0.99"],
-            ["Milk", "Drink", "3.99"],
-            ["Crackers", "Snack", "5.99"]
-          ]);
-      });
-    });
+        assert.deepEqual( data, [
+          [ "Apple", "Fruit", "0.99" ],
+          [ "Milk", "Drink", "3.99" ],
+          [ "Crackers", "Snack", "5.99" ]
+        ] );
+      } );
+    } );
 
-    suite("_getParams", function() {
+    suite( "_getParams", function() {
       var params,
         standardParams = {
           "key": "def456",
@@ -310,334 +311,334 @@
           "valueRenderOption": "FORMATTED_VALUE"
         };
 
-      teardown(function() {
+      teardown( function() {
         sheetRequest.apikey = "def456";
         sheetRequest.dimension = "ROWS";
         sheetRequest.render = "FORMATTED_VALUE";
-      });
+      } );
 
-      test("should return an object with default params", function () {
+      test( "should return an object with default params", function() {
         params = sheetRequest._getParams();
 
-        assert.deepEqual(params, standardParams);
-      });
+        assert.deepEqual( params, standardParams );
+      } );
 
-      test("should return an object that applies 'apikey` attribute value", function () {
+      test( "should return an object that applies 'apikey` attribute value", function() {
         sheetRequest.apikey = "test";
 
         params = sheetRequest._getParams();
 
-        assert.property(params, "key");
-        assert.isString(params["key"]);
-        assert.equal(params["key"], "test");
-      });
+        assert.property( params, "key" );
+        assert.isString( params[ "key" ] );
+        assert.equal( params[ "key" ], "test" );
+      } );
 
-      test("should return an object that applies 'dimension' attribute value", function () {
+      test( "should return an object that applies 'dimension' attribute value", function() {
         sheetRequest.dimension = "COLUMNS";
 
         params = sheetRequest._getParams();
 
-        assert.isString(params["majorDimension"]);
-        assert.equal(params["majorDimension"], "COLUMNS");
-      });
+        assert.isString( params[ "majorDimension" ] );
+        assert.equal( params[ "majorDimension" ], "COLUMNS" );
+      } );
 
-      test("should return an object that applies 'render' attribute value", function () {
+      test( "should return an object that applies 'render' attribute value", function() {
         sheetRequest.render = "FORMULA";
 
         params = sheetRequest._getParams();
 
-        assert.isString(params["valueRenderOption"]);
-        assert.equal(params["valueRenderOption"], "FORMULA");
-      });
+        assert.isString( params[ "valueRenderOption" ] );
+        assert.equal( params[ "valueRenderOption" ], "FORMULA" );
+      } );
 
-    });
+    } );
 
-    suite("_getRange", function () {
+    suite( "_getRange", function() {
 
-      test("should return correct format of range if range has value", function () {
+      test( "should return correct format of range if range has value", function() {
         var range;
 
         sheetRequest.range = "B2:F20";
 
         range = sheetRequest._getRange();
 
-        assert.isString(range);
-        assert.equal(range, "!B2:F20");
-      });
+        assert.isString( range );
+        assert.equal( range, "!B2:F20" );
+      } );
 
-    });
+    } );
 
-    suite("_getUrl", function () {
+    suite( "_getUrl", function() {
       var url;
 
-      teardown(function() {
+      teardown( function() {
         sheetRequest.range = "";
-      });
+      } );
 
-      test("should return correct URL to use for generating a request to Sheets API", function () {
+      test( "should return correct URL to use for generating a request to Sheets API", function() {
         sheetRequest.range = "B2:F20";
 
         url = sheetRequest._getUrl();
 
-        assert.isString(url);
-        assert.equal(url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet%2F1!B2:F20");
-      });
-    });
+        assert.isString( url );
+        assert.equal( url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet%2F1!B2:F20" );
+      } );
+    } );
 
-    suite("go", function () {
+    suite( "go", function() {
       var getStub;
 
-      setup(function() {
-        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          return cb(null);
-        });
-      });
+      setup( function() {
+        getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( null );
+        } );
+      } );
 
-      teardown(function() {
+      teardown( function() {
         sheetRequest.key = "abc123";
         sheetRequest.apikey = "def456";
         sheetRequest.sheet = "Sheet1";
         sheetRequest._dataPingReceived = false;
         sheetRequest._requestWaiting = false;
         sheetRequest.$.data.getItem.restore();
-      });
+      } );
 
-      test("should not make call to generate request without a value for 'key'", function () {
+      test( "should not make call to generate request without a value for 'key'", function() {
         sheetRequest.key = "";
 
         sheetRequest.go();
 
-        assert.equal(getStub.callCount, 0);
-      });
+        assert.equal( getStub.callCount, 0 );
+      } );
 
-      test("should not make call to generate request without a value for 'sheet'", function () {
+      test( "should not make call to generate request without a value for 'sheet'", function() {
         sheetRequest.sheet = "";
 
         sheetRequest.go();
 
-        assert.equal(getStub.callCount, 0);
-      });
+        assert.equal( getStub.callCount, 0 );
+      } );
 
-      test("should not make call to generate request without a value for 'apikey'", function () {
+      test( "should not make call to generate request without a value for 'apikey'", function() {
         sheetRequest.apikey = "";
         sheetRequest.go();
 
-        assert.equal(getStub.callCount, 0);
-      });
+        assert.equal( getStub.callCount, 0 );
+      } );
 
-      test("should not make call to generate request if data ping has not been received", function () {
+      test( "should not make call to generate request if data ping has not been received", function() {
         sheetRequest.go();
 
-        assert.equal(getStub.callCount, 0);
-        assert.isTrue(sheetRequest._requestWaiting);
-      });
+        assert.equal( getStub.callCount, 0 );
+        assert.isTrue( sheetRequest._requestWaiting );
+      } );
 
-      test("should get cached data and call _process with provided data", function () {
-        var processStub = sinon.stub(sheetRequest, "_process");
+      test( "should get cached data and call _process with provided data", function() {
+        var processStub = sinon.stub( sheetRequest, "_process" );
 
         sheetRequest._dataPingReceived = true;
         sheetRequest.go();
 
-        assert.isTrue(getStub.calledOnce);
-        assert.isTrue(processStub.calledWith(null));
+        assert.isTrue( getStub.calledOnce );
+        assert.isTrue( processStub.calledWith( null ) );
 
         processStub.restore();
-      });
+      } );
 
-      test("should not execute further request when there is one pending a response", function() {
-        var requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
+      test( "should not execute further request when there is one pending a response", function() {
+        var requestStub = sinon.stub( sheetRequest.$.sheet, "generateRequest", function() {} );
 
         sheetRequest._dataPingReceived = true;
         sheetRequest.go();
         sheetRequest.go();
         sheetRequest.go();
 
-        assert(requestStub.calledOnce);
+        assert( requestStub.calledOnce );
 
         requestStub.restore();
-      });
+      } );
 
 
-    });
+    } );
 
-    suite("_startTimer", function() {
-      teardown(function() {
+    suite( "_startTimer", function() {
+      teardown( function() {
         sheetRequest.refresh = 0;
-      });
+      } );
 
-      test("should enforce a minimum refresh interval of 1 (minutes)", function() {
+      test( "should enforce a minimum refresh interval of 1 (minutes)", function() {
         sheetRequest.refresh = 0.5;
         sheetRequest._startTimer();
-        assert.equal(sheetRequest.refresh, 0);
-      });
+        assert.equal( sheetRequest.refresh, 0 );
+      } );
 
-      test("should make a new request for data", function() {
-        var timerStub = sinon.stub(sheetRequest, "go", function () {});
+      test( "should make a new request for data", function() {
+        var timerStub = sinon.stub( sheetRequest, "go", function() {} );
 
         sheetRequest.refresh = 30;
         sheetRequest._startTimer();
 
-        clock.tick(1800000);
+        clock.tick( 1800000 );
 
-        assert.isTrue(sheetRequest._refreshPending);
-        assert(timerStub.calledOnce);
+        assert.isTrue( sheetRequest._refreshPending );
+        assert( timerStub.calledOnce );
 
         sheetRequest.go.restore();
-      });
+      } );
 
-    });
+    } );
 
-    suite("_handleNoNetwork", function () {
+    suite( "_handleNoNetwork", function() {
       var resp = {
-        "error": {},
-        "request": {
-          "status": 0
-        }
-      },
+          "error": {},
+          "request": {
+            "status": 0
+          }
+        },
         getStub;
 
-      teardown(function() {
-        sheetRequest._setResults([]);
-        localStorage.removeItem(sheetRequest._getDataKey());
+      teardown( function() {
+        sheetRequest._setResults( [] );
+        localStorage.removeItem( sheetRequest._getDataKey() );
         getStub.restore();
-      });
+      } );
 
-      test("should fire rise-google-sheet-response when cached data exists", function (done) {
-        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          return cb({data: {results: sheetData.values}, timestamp: ""});
-        });
+      test( "should fire rise-google-sheet-response when cached data exists", function( done ) {
+        getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( { data: { results: sheetData.values }, timestamp: "" } );
+        } );
 
-        listener = function(response) {
+        listener = function( response ) {
           responded = true;
 
-          assert.property(response.detail, "results", "detail.results property exists");
-          assert.deepEqual(response.detail.results, sheetData.values);
+          assert.property( response.detail, "results", "detail.results property exists" );
+          assert.deepEqual( response.detail.results, sheetData.values );
 
-          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-response", listener );
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-response", listener);
-        sheetRequest._handleNoNetwork(resp);
+        sheetRequest.addEventListener( "rise-google-sheet-response", listener );
+        sheetRequest._handleNoNetwork( resp );
 
-        assert.isTrue(responded);
+        assert.isTrue( responded );
 
         done();
-      });
+      } );
 
-      test("should fire rise-google-sheet-error when cached data doesn't exist", function (done) {
-        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          return cb(null);
-        });
+      test( "should fire rise-google-sheet-error when cached data doesn't exist", function( done ) {
+        getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( null );
+        } );
 
-        listener = function(response) {
+        listener = function( response ) {
           responded = true;
 
-          assert.equal(response.detail.request.status, 0);
+          assert.equal( response.detail.request.status, 0 );
 
-          sheetRequest.removeEventListener("rise-google-sheet-error", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-error", listener );
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-error", listener);
-        sheetRequest._handleNoNetwork(resp);
+        sheetRequest.addEventListener( "rise-google-sheet-error", listener );
+        sheetRequest._handleNoNetwork( resp );
 
-        assert.isTrue(responded);
+        assert.isTrue( responded );
 
         done();
-      });
+      } );
 
-    });
+    } );
 
-    suite("_handleQuotaExceeded", function () {
+    suite( "_handleQuotaExceeded", function() {
       var getStub;
 
-      teardown(function() {
-        sheetRequest._setResults([]);
-        localStorage.removeItem(sheetRequest._getDataKey());
+      teardown( function() {
+        sheetRequest._setResults( [] );
+        localStorage.removeItem( sheetRequest._getDataKey() );
         getStub.restore();
-      });
+      } );
 
-      test("should fire rise-google-sheet-quota", function (done) {
-        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          return cb(null);
-        });
+      test( "should fire rise-google-sheet-quota", function( done ) {
+        getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( null );
+        } );
 
-        listener = function(response) {
+        listener = function( response ) {
           responded = true;
 
-          assert.deepEqual(response.detail, {});
+          assert.deepEqual( response.detail, {} );
 
-          sheetRequest.removeEventListener("rise-google-sheet-quota", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-quota", listener );
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-quota", listener);
+        sheetRequest.addEventListener( "rise-google-sheet-quota", listener );
         sheetRequest._handleQuotaExceeded();
 
-        assert.isTrue(responded);
+        assert.isTrue( responded );
 
         done();
-      });
+      } );
 
-      test("should fire rise-google-sheet-quota and provide cached data when it exists", function (done) {
-        getStub = sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          return cb({data: {results: sheetData.values}, timestamp: ""});
-        });
+      test( "should fire rise-google-sheet-quota and provide cached data when it exists", function( done ) {
+        getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( { data: { results: sheetData.values }, timestamp: "" } );
+        } );
 
-        listener = function(response) {
+        listener = function( response ) {
           responded = true;
 
-          assert.property(response.detail, "results", "detail.results property exists");
-          assert.deepEqual(response.detail.results, sheetData.values);
+          assert.property( response.detail, "results", "detail.results property exists" );
+          assert.deepEqual( response.detail.results, sheetData.values );
 
-          sheetRequest.removeEventListener("rise-google-sheet-quota", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-quota", listener );
         };
 
         // ensure cached data exists
-        localStorage.setItem(sheetRequest._getDataKey(), JSON.stringify({data: {results: sheetData.values}, timestamp: ""}));
+        localStorage.setItem( sheetRequest._getDataKey(), JSON.stringify( { data: { results: sheetData.values }, timestamp: "" } ) );
 
-        sheetRequest.addEventListener("rise-google-sheet-quota", listener);
+        sheetRequest.addEventListener( "rise-google-sheet-quota", listener );
         sheetRequest._handleQuotaExceeded();
 
-        assert.isTrue(responded);
+        assert.isTrue( responded );
 
         done();
-      });
+      } );
 
-    });
+    } );
 
-    suite("ready", function() {
+    suite( "ready", function() {
       var logStub;
 
-      setup(function() {
-        logStub = sinon.stub(sheetRequest.$.logger, "log");
-      });
+      setup( function() {
+        logStub = sinon.stub( sheetRequest.$.logger, "log" );
+      } );
 
-      teardown(function() {
+      teardown( function() {
         logStub.restore();
         sheetRequest.usage = "";
-      });
+      } );
 
-      test("should log usage", function () {
+      test( "should log usage", function() {
         sheetRequest.ready();
-        assert.equal(logStub.args[0][0],"component_sheet_events");
-        assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"version\":");
-      });
+        assert.equal( logStub.args[ 0 ][ 0 ], "component_sheet_events" );
+        assert.include( JSON.stringify( logStub.args[ 0 ][ 1 ] ), "{\"event\":\"ready\",\"version\":" );
+      } );
 
-      test("should log usage and include 'usage_type'", function() {
+      test( "should log usage and include 'usage_type'", function() {
         sheetRequest.usage = "widget";
         sheetRequest.ready();
-        assert.equal(logStub.args[0][0],"component_sheet_events");
-        assert.include(JSON.stringify(logStub.args[0][1]),"{\"event\":\"ready\",\"usage_type\":\"widget\",\"version\":");
-      });
-    });
+        assert.equal( logStub.args[ 0 ][ 0 ], "component_sheet_events" );
+        assert.include( JSON.stringify( logStub.args[ 0 ][ 1 ] ), "{\"event\":\"ready\",\"usage_type\":\"widget\",\"version\":" );
+      } );
+    } );
 
-    suite("_process", function() {
+    suite( "_process", function() {
       var requestStub;
 
-      setup(function() {
-        requestStub = sinon.stub(sheetRequest.$.sheet, "generateRequest", function (){});
-      });
+      setup( function() {
+        requestStub = sinon.stub( sheetRequest.$.sheet, "generateRequest", function() {} );
+      } );
 
-      teardown(function() {
+      teardown( function() {
         sheetRequest.key = "abc123";
         sheetRequest.apikey = "def456";
         sheetRequest.sheet = "Sheet1";
@@ -646,60 +647,60 @@
         sheetRequest._refreshPending = false;
         sheetRequest.$.sheet.generateRequest.restore();
 
-        localStorage.removeItem(sheetRequest._getDataKey());
-      });
+        localStorage.removeItem( sheetRequest._getDataKey() );
+      } );
 
-      test("should ensure the correct url is provided in request to Sheets API", function () {
-        sheetRequest._process(null);
+      test( "should ensure the correct url is provided in request to Sheets API", function() {
+        sheetRequest._process( null );
 
-        assert.equal(sheetRequest.$.sheet.url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet1");
-      });
+        assert.equal( sheetRequest.$.sheet.url, "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet1" );
+      } );
 
-      test("should ensure all required params are included in request to Sheets API", function () {
-        sheetRequest._process(null);
+      test( "should ensure all required params are included in request to Sheets API", function() {
+        sheetRequest._process( null );
 
-        assert.deepEqual(sheetRequest.$.sheet.params, {
+        assert.deepEqual( sheetRequest.$.sheet.params, {
           "key": "def456",
           "majorDimension": "ROWS",
           "valueRenderOption": "FORMATTED_VALUE"
-        });
-      });
+        } );
+      } );
 
-      test("should generate request to Sheets API when no cached data available", function () {
-        sheetRequest._process(null);
+      test( "should generate request to Sheets API when no cached data available", function() {
+        sheetRequest._process( null );
 
-        assert(requestStub.calledOnce);
-      });
+        assert( requestStub.calledOnce );
+      } );
 
-      test("should generate request if refresh is pending", function () {
+      test( "should generate request if refresh is pending", function() {
         sheetRequest.refresh = 5;
         sheetRequest._refreshPending = true;
 
-        sheetRequest._process({data: {results: sheetData.values}, timestamp: ""});
+        sheetRequest._process( { data: { results: sheetData.values }, timestamp: "" } );
 
-        assert(requestStub.calledOnce);
-      });
+        assert( requestStub.calledOnce );
+      } );
 
-      test("should fire rise-google-sheet-response with cached data when refresh not pending and cached data available", function(done) {
-        listener = function(response) {
+      test( "should fire rise-google-sheet-response with cached data when refresh not pending and cached data available", function( done ) {
+        listener = function( response ) {
           responded = true;
 
-          assert.deepEqual(response.detail.results, sheetData.values, "detail.results property exists");
+          assert.deepEqual( response.detail.results, sheetData.values, "detail.results property exists" );
 
-          sheetRequest.removeEventListener("rise-google-sheet-response", listener);
+          sheetRequest.removeEventListener( "rise-google-sheet-response", listener );
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-response", listener);
-        sheetRequest._process({data: {results: sheetData.values}, timestamp: ""});
+        sheetRequest.addEventListener( "rise-google-sheet-response", listener );
+        sheetRequest._process( { data: { results: sheetData.values }, timestamp: "" } );
 
-        assert.equal(requestStub.callCount, 0);
-        assert.isTrue(responded);
+        assert.equal( requestStub.callCount, 0 );
+        assert.isTrue( responded );
 
         done();
-      });
-    });
+      } );
+    } );
 
-  });
+  } );
 </script>
 </body>
 </html>

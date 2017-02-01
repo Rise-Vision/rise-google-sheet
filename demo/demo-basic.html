@@ -24,48 +24,50 @@
                    sheet="Cars"></rise-google-sheet>
 
 <script>
-  (function () {
+  /* eslint-disable no-console */
+
+  ( function() {
     "use strict";
 
-    function go(apiKey) {
-      var googleSheet = document.getElementById("googleSheet");
+    function go( apiKey ) {
+      var googleSheet = document.getElementById( "googleSheet" );
 
-      googleSheet.setAttribute("apiKey", apiKey);
+      googleSheet.setAttribute( "apiKey", apiKey );
 
       googleSheet.go();
     }
 
     function webComponentsReady() {
-      window.removeEventListener("WebComponentsReady", webComponentsReady);
+      var googleSheet = document.getElementById( "googleSheet" ),
+        formBtn = document.querySelector( "input[name='btn']" ),
+        apiKeyInput = document.querySelector( "input[name='key']" );
 
-      var googleSheet = document.getElementById("googleSheet"),
-        formBtn = document.querySelector("input[name='btn']"),
-        apiKeyInput = document.querySelector("input[name='key']");
+      window.removeEventListener( "WebComponentsReady", webComponentsReady );
 
       //add event listener
-      formBtn.addEventListener("click", function() {
-        if (apiKeyInput.value !== "") {
-          go(apiKeyInput.value);
+      formBtn.addEventListener( "click", function() {
+        if ( apiKeyInput.value !== "" ) {
+          go( apiKeyInput.value );
         }
-      });
+      } );
 
-      googleSheet.addEventListener("rise-google-sheet-response", function (e) {
-        console.log(e.detail.results);
-      });
+      googleSheet.addEventListener( "rise-google-sheet-response", function( e ) {
+        console.log( e.detail.results );
+      } );
 
-      googleSheet.addEventListener("rise-google-sheet-error", function (e) {
-        console.log(e.detail);
-      });
+      googleSheet.addEventListener( "rise-google-sheet-error", function( e ) {
+        console.log( e.detail );
+      } );
 
-      googleSheet.addEventListener("rise-google-sheet-quota", function (e) {
-        console.log(e.detail);
-      });
+      googleSheet.addEventListener( "rise-google-sheet-quota", function( e ) {
+        console.log( e.detail );
+      } );
 
     }
 
-    window.addEventListener("WebComponentsReady", webComponentsReady);
+    window.addEventListener( "WebComponentsReady", webComponentsReady );
 
-  })();
+  } )();
 </script>
 
 </body>

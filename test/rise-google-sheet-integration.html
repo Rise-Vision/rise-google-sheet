@@ -18,180 +18,183 @@
 <script src="data/error.js"></script>
 
 <script>
+  /* global sinon, suite, test, assert, setup, suiteSetup, suiteTeardown, sheetData, errorData */
 
-  var sheetRequest = document.querySelector("#request"),
+  var sheetRequest = document.querySelector( "#request" ),
     display = "abc123";
 
   // mock logger getting display id from Rise Cache
-  sinon.stub(sheetRequest.$.logger.$.displayId, "generateRequest", function() {
-    sheetRequest.$.logger._onDisplayIdResponse(null, {response: {displayId: display}});
-  });
+  sinon.stub( sheetRequest.$.logger.$.displayId, "generateRequest", function() {
+    sheetRequest.$.logger._onDisplayIdResponse( null, { response: { displayId: display } } );
+  } );
 
-  suite("rise-google-sheet", function() {
-    var clock, server, responseHandler;
+  suite( "rise-google-sheet", function() {
+    var clock,
+      server,
+      responseHandler;
 
     // Runs for every suite.
-    suiteSetup(function() {
+    suiteSetup( function() {
       server = sinon.fakeServer.create();
 
       clock = sinon.useFakeTimers();
-    });
+    } );
 
-    suiteTeardown(function() {
+    suiteTeardown( function() {
       server.restore();
       clock.restore();
-    });
+    } );
 
-    setup(function() {
-      localStorage.removeItem("risesheet_" + sheetRequest.key + "_" + sheetRequest.sheet); // clear localStorage
-    });
+    setup( function() {
+      localStorage.removeItem( "risesheet_" + sheetRequest.key + "_" + sheetRequest.sheet );
+    } );
 
-    suite("request data", function() {
+    suite( "request data", function() {
 
-      suiteSetup(function() {
-        sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          cb(null);
-        });
+      suiteSetup( function() {
+        sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          cb( null );
+        } );
 
         sheetRequest._onDataPingReceived();
-      });
+      } );
 
-      suiteTeardown(function() {
+      suiteTeardown( function() {
         sheetRequest.$.data.getItem.restore();
-      });
+      } );
 
-      test("should return an Array of cell objects when server/API request responds successfully", function(done) {
+      test( "should return an Array of cell objects when server/API request responds successfully", function( done ) {
 
-        responseHandler = function(response) {
+        responseHandler = function( response ) {
 
-          assert.property(response.detail, "results", "detail.results property exists");
-          assert.isArray(response.detail.results, "detail.results is an Array");
-          assert.deepEqual(response.detail.results, sheetData.values);
+          assert.property( response.detail, "results", "detail.results property exists" );
+          assert.isArray( response.detail.results, "detail.results is an Array" );
+          assert.deepEqual( response.detail.results, sheetData.values );
 
-          sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
+          sheetRequest.removeEventListener( "rise-google-sheet-response", responseHandler );
 
           done();
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
-        server.respondWith([200, {}, JSON.stringify(sheetData)]);
+        sheetRequest.addEventListener( "rise-google-sheet-response", responseHandler );
+        server.respondWith( [ 200, {}, JSON.stringify( sheetData ) ] );
         sheetRequest.go();
         server.respond();
-      });
+      } );
 
-      test("should return data with columns appended to data", function(done) {
+      test( "should return data with columns appended to data", function( done ) {
         var data =
           {
             "majorDimension": "ROWS",
             "range": "Sheet1!A1:F999",
             "values": [
-              ["Apple"],
-              ["Milk", "Drink", "3.99"],
-              ["Crackers", "Snack"]
+              [ "Apple" ],
+              [ "Milk", "Drink", "3.99" ],
+              [ "Crackers", "Snack" ]
             ]
           };
 
-        responseHandler = function(response) {
-          assert.deepEqual(response.detail.results, [
-            ["Apple", "", ""],
-            ["Milk", "Drink", "3.99"],
-            ["Crackers", "Snack", ""]
-          ]);
+        responseHandler = function( response ) {
+          assert.deepEqual( response.detail.results, [
+            [ "Apple", "", "" ],
+            [ "Milk", "Drink", "3.99" ],
+            [ "Crackers", "Snack", "" ]
+          ] );
 
-          sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
+          sheetRequest.removeEventListener( "rise-google-sheet-response", responseHandler );
           done();
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
-        server.respondWith([200, {}, JSON.stringify(data)]);
+        sheetRequest.addEventListener( "rise-google-sheet-response", responseHandler );
+        server.respondWith( [ 200, {}, JSON.stringify( data ) ] );
         sheetRequest.go();
         server.respond();
-      });
+      } );
 
-      test("should return error when server/API request responds unsuccessful", function (done) {
-        responseHandler = function(response) {
+      test( "should return error when server/API request responds unsuccessful", function( done ) {
+        responseHandler = function( response ) {
 
-          assert.isObject(response.detail, "detail is an Object");
-          assert.equal(response.detail.request.status, 400);
-          assert.equal(response.detail.error.message, "The request failed with status code: 400");
+          assert.isObject( response.detail, "detail is an Object" );
+          assert.equal( response.detail.request.status, 400 );
+          assert.equal( response.detail.error.message, "The request failed with status code: 400" );
 
-          sheetRequest.removeEventListener("rise-google-sheet-error", responseHandler);
+          sheetRequest.removeEventListener( "rise-google-sheet-error", responseHandler );
           done();
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-error", responseHandler);
-        server.respondWith([400, {}, JSON.stringify(errorData)]);
+        sheetRequest.addEventListener( "rise-google-sheet-error", responseHandler );
+        server.respondWith( [ 400, {}, JSON.stringify( errorData ) ] );
         sheetRequest.go();
         server.respond();
-      });
+      } );
 
-      test("should notify when API has exceeded its quota", function (done) {
-        responseHandler = function(response) {
+      test( "should notify when API has exceeded its quota", function( done ) {
+        responseHandler = function( response ) {
 
-          assert.deepEqual(response.detail, {});
+          assert.deepEqual( response.detail, {} );
 
-          sheetRequest.removeEventListener("rise-google-sheet-quota", responseHandler);
+          sheetRequest.removeEventListener( "rise-google-sheet-quota", responseHandler );
           done();
         };
 
-        sheetRequest.addEventListener("rise-google-sheet-quota", responseHandler);
+        sheetRequest.addEventListener( "rise-google-sheet-quota", responseHandler );
 
-        server.respondWith([429, {}, JSON.stringify({
+        server.respondWith( [ 429, {}, JSON.stringify( {
           "error": {
             "message": "The request failed with status code: 429"
           },
           "request": {
             "status": 429
           }
-        })]);
+        } ) ] );
 
         sheetRequest.go();
         server.respond();
-      });
+      } );
 
-    });
+    } );
 
-    suite("offline cached data", function() {
+    suite( "offline cached data", function() {
 
-      suiteSetup(function() {
-        sinon.stub(sheetRequest.$.data, "getItem", function(key, cb) {
-          return cb({data: {results: sheetData.values}, timestamp: ""});
-        });
+      suiteSetup( function() {
+        sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( { data: { results: sheetData.values }, timestamp: "" } );
+        } );
 
         sheetRequest._onDataPingReceived();
-      });
+      } );
 
-      suiteTeardown(function() {
+      suiteTeardown( function() {
         sheetRequest.$.data.getItem.restore();
-      });
+      } );
 
-      test("should return cached Array of values when making offline request", function (done) {
-        responseHandler = function(response) {
+      test( "should return cached Array of values when making offline request", function( done ) {
+        responseHandler = function( response ) {
 
-          assert.deepEqual(response.detail.results, sheetData.values);
+          assert.deepEqual( response.detail.results, sheetData.values );
 
-          sheetRequest.removeEventListener("rise-google-sheet-response", responseHandler);
+          sheetRequest.removeEventListener( "rise-google-sheet-response", responseHandler );
           done();
         };
 
         // data will get cached
-        server.respondWith([200, {}, JSON.stringify(sheetData)]);
+        server.respondWith( [ 200, {}, JSON.stringify( sheetData ) ] );
         sheetRequest.go();
         server.respond();
 
-        server.respondWith([0, {}, JSON.stringify({
+        server.respondWith( [ 0, {}, JSON.stringify( {
           "error": {},
           "request": {
             "status": 0
           }
-        })]);
-        sheetRequest.addEventListener("rise-google-sheet-response", responseHandler);
+        } ) ] );
+        sheetRequest.addEventListener( "rise-google-sheet-response", responseHandler );
         sheetRequest.go();
         server.respond();
-      });
-    });
+      } );
+    } );
 
-  });
+  } );
 </script>
 </body>
 </html>
