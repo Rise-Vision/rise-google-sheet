@@ -45,31 +45,32 @@
 <script>
   /* global DemoPlaylist */
 
-  (function () {
+  ( function() {
     "use strict";
 
     function webComponentsReady() {
-      var formBtn = document.querySelector("input[name='btn']"),
-        apiKeyInput = document.querySelector("input[name='key']");
+      var formBtn = document.querySelector( "input[name='btn']" ),
+        apiKeyInput = document.querySelector( "input[name='key']" ),
+        demo;
 
-      window.removeEventListener("WebComponentsReady", webComponentsReady);
+      window.removeEventListener( "WebComponentsReady", webComponentsReady );
 
       // new instance of DemoPlaylist object
-      var demo = new DemoPlaylist();
+      demo = new DemoPlaylist();
 
       //add event listener
-      formBtn.addEventListener("click", function() {
-        if (apiKeyInput.value !== "") {
+      formBtn.addEventListener( "click", function() {
+        if ( apiKeyInput.value !== "" ) {
           // initialize the content
-          demo.init(apiKeyInput.value);
+          demo.init( apiKeyInput.value );
         }
-      });
+      } );
 
     }
 
-    window.addEventListener("WebComponentsReady", webComponentsReady);
+    window.addEventListener( "WebComponentsReady", webComponentsReady );
 
-  })();
+  } )();
 </script>
 
 </body>
