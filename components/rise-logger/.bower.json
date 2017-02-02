@@ -1,0 +1,40 @@
+{
+  "name": "rise-logger",
+  "version": "1.0.4",
+  "authors": [
+    "Rise Vision"
+  ],
+  "description": "Rise Vision web component used for logging usage of a parent web component",
+  "main": "rise-logger.html",
+  "keywords": [
+    "polymer",
+    "web-component",
+    "web-components",
+    "logger",
+    "big query"
+  ],
+  "license": "GPLv3",
+  "homepage": "https://github.com/Rise-Vision/rise-logger",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "test"
+  ],
+  "dependencies": {
+    "iron-ajax": "PolymerElements/iron-ajax#^1.0.0",
+    "polymer": "Polymer/polymer#^1.0.0"
+  },
+  "devDependencies": {
+    "iron-component-page": "PolymerElements/iron-component-page#^1.0.0",
+    "web-component-tester": "*"
+  },
+  "_release": "1.0.4",
+  "_resolution": {
+    "type": "version",
+    "tag": "1.0.4",
+    "commit": "a80821576951a344542811581c03f223e3b614e1"
+  },
+  "_source": "https://github.com/Rise-Vision/rise-logger.git",
+  "_target": "1.0.4",
+  "_originalSource": "https://github.com/Rise-Vision/rise-logger.git"
+}

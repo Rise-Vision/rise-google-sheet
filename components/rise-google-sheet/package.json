@@ -1,0 +1,44 @@
+{
+  "name": "rise-google-sheet",
+  "version": "2.4.2",
+  "description": "Rise Vision web component for retrieving Google Sheet data",
+  "scripts": {
+    "test": "gulp test",
+    "build": "gulp build"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rise-Vision/rise-google-sheet.git"
+  },
+  "keywords": [
+    "polymer",
+    "web-component",
+    "web-components",
+    "sheets",
+    "google-sheets"
+  ],
+  "author": "Rise Vision",
+  "license": "GPLv3",
+  "bugs": {
+    "url": "https://github.com/Rise-Vision/rise-google-sheet/issues"
+  },
+  "homepage": "https://github.com/Rise-Vision/rise-google-sheet",
+  "devDependencies": {
+    "colors": "~1.1.0",
+    "del": "~1.1.1",
+    "eslint": "^3.8.1",
+    "eslint-config-idiomatic": "^2.1.0",
+    "eslint-plugin-html": "^1.6.0",
+    "gulp": "~3.8.10",
+    "gulp-bower": "~0.0.10",
+    "gulp-bump": "~0.2.0",
+    "gulp-eslint": "^3.0.1",
+    "gulp-html-replace": "~1.6.1",
+    "run-sequence": "~1.1.0",
+    "web-component-tester": "*",
+    "widget-tester": "git://github.com/Rise-Vision/widget-tester.git"
+  }
+}

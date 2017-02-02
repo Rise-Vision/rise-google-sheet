@@ -1,0 +1,505 @@
+<link rel="import" href="../polymer/polymer.html">
+<link rel="import" href="../iron-ajax/iron-ajax.html">
+<link rel="import" href="../rise-logger/rise-logger.html">
+<link rel="import" href="../rise-data/rise-data.html">
+
+<script src="../moment/moment.js"></script>
+
+<!--
+`rise-google-sheet` is a web component that retrieves values from a Google Sheet specified by key and sheet name.
+
+The `key` attribute is required which is to identify the Google Spreadsheet you want to target.
+A spreadsheet's key can be found in the URL when viewing it in Google Docs
+(e.g. docs.google.com/spreadsheets/d/< KEY >/edit#gid=0).
+
+The `apikey` attribute is required which is to identify the request being sent to the Google Sheets API.
+Requests to the Google Sheets API for public data must be accompanied by this identifier. To learn more about
+acquiring an API key see [Acquiring and using an API key](https://developers.google.com/sheets/guides/authorizing#APIKey).
+
+The `sheet` attribute is also required which is the name of the specific sheet within the Spreadsheet that you want
+to retrieve values from. (eg. Sheet1)
+
+The specified feed is periodically retrieved if the `refresh` attribute is set, although a minimum refresh
+time of 1 minute is enforced.
+
+#### Example Usage
+
+    <rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" refresh="30"></rise-google-sheet>
+
+    <script>
+      var sheet = document.querySelector('rise-google-sheet');
+
+      // Respond to events it fires.
+      sheet.addEventListener('rise-google-sheet-response', function(e) {
+        if (e.detail && e.detail.results) {
+          console.log(e.detail.results); // Array of sheet values
+        }
+      });
+
+      sheet.go(); // Executes a request.
+    </script>
+
+#### Range
+
+`rise-google-sheet` allows for fetching specific range of values from a worksheet by providing an attribute that expects
+ A1 notation of the values to retrieve.
+
+For example, to retrieve all values within cells A1 to B2 of the worksheet:
+
+    <rise-google-sheet key="abc123" apikey="def456" sheet="Sheet1" range="A1:B2"></rise-google-sheet>
+
+#### Dimension
+
+Optionally, the `dimension` attribute allows for specifying the major dimension that results should use.
+For example, if the spreadsheet data is: A1=1,B1=2,A2=3,B2=4, then dimension="ROWS" will return [[1,2],[3,4]],
+whereas dimension="COLUMNS" will return [[1,3],[2,4]].
+
+#### Render
+
+Optionally, the `render` attribute determines how values should be represented in the output. By default the
+values will be calculated and formatted in the response according to the cell's formatting. For more detail on
+the values that can be provided in this attribute and their impact, see [Google Sheets API - ValueRenderOption](https://developers.google.com/sheets/reference/rest/v4/ValueRenderOption)
+
+@demo
+-->
+<dom-module id="rise-google-sheet">
+  <template>
+    <rise-logger id="logger"></rise-logger>
+    <rise-data id="data" endpoint="spreadsheets"></rise-data>
+    <iron-ajax id="sheet"
+               handle-as="json"
+               on-response="_onSheetResponse"
+               on-error="_onSheetError">
+    </iron-ajax>
+    <content></content>
+  </template>
+</dom-module>
+
+<!-- build:version -->
+<script>var sheetVersion = "2.4.2";</script>
+<!-- endbuild -->
+
+<script>
+  ( function() {
+    /* global Polymer, moment, sheetVersion */
+
+    "use strict";
+
+    var API_BASE_URL = "https://sheets.googleapis.com/v4/spreadsheets/",
+      DATAKEY_BASE_NAME = "risesheet",
+      BQ_TABLE_NAME = "component_sheet_events";
+
+    Polymer( {
+      is: "rise-google-sheet",
+
+      properties: {
+        /**
+         * The key of the spreadsheet. This can be found in the URL when viewing
+         * the document in Google Docs (e.g. docs.google.com/spreadsheets/d/<KEY>).
+         */
+        key: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * An api key must be provided to make the request for public data using the Sheets API (v4).
+         */
+        apikey: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * Name of sheet to target in a spreadsheet. For example, by default 'Sheet1' is the name of first sheet
+         * in a new google spreadsheet
+         */
+        sheet: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * The A1 notation of the values to retrieve.
+         */
+        range: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * The major dimension that results should use. Options are 'ROWS' or 'COLUMNS'
+         */
+        dimension: {
+          type: String,
+          value: "ROWS"
+        },
+
+        /**
+         * The number of minutes before another request will be made.
+         */
+        refresh: {
+          type: Number,
+          value: 0
+        },
+
+        /**
+         * How values should be represented in the output. Options are 'FORMATTED_VALUE', 'UNFORMATTED_VALUE',
+         * and 'FORMULA'
+         */
+        render: {
+          type: String,
+          value: "FORMATTED_VALUE"
+        },
+
+        /**
+         * The optional usage type for Rise Vision logging purposes. Options are "standalone" or "widget"
+         */
+        usage: {
+          type: String,
+          value: ""
+        },
+
+        /**
+         * Returns the values from a spreadsheet.
+         */
+        results: {
+          type: Array,
+          value: function() {
+            return [];
+          },
+          readOnly: true,
+          notify: true
+        }
+      },
+
+      _requestPending: false,
+
+      _refreshPending: false,
+
+      _initialGo: true,
+
+      _dataPingReceived: false,
+
+      _requestWaiting: false,
+
+      // Element Behavior
+
+      /**
+       * Fired when a response is received.
+       *
+       * @param {Object} detail
+       * @param {Object} detail.results The array of sheet values returned by the Google Sheets API
+       * @event rise-google-sheet-response
+       */
+
+      /**
+       * Fired when an error is received.
+       *
+       * @event rise-google-sheet-error
+       */
+
+      /**
+       * Fired when the API key has exceeded its quota for daily requests.
+       *
+       * @param {Object} detail
+       * @param {Object} detail.results The cached array of sheet values if data has been cached
+       * @event rise-google-sheet-quota
+       */
+
+      _isValidUsage: function( usage ) {
+        return usage === "standalone" || usage === "widget";
+      },
+
+      _getDataKey: function() {
+        return DATAKEY_BASE_NAME + "_" + this.key + "_" + this.sheet +
+          ( this.range === "" ? "" : "_" + this.range );
+      },
+
+      _startTimer: function() {
+        var refreshFn = this.go,
+          self = this;
+
+        this.refresh = parseInt( this.refresh, 10 );
+
+        if ( !isNaN( this.refresh ) && this.refresh !== 0 ) {
+          this.debounce( "refresh", function() {
+            self._refreshPending = true;
+            refreshFn.call( self );
+          }, this.refresh * 60000 );
+        }
+      },
+
+      _prepareResponse: function( resp ) {
+        var response = {};
+        /*
+         Provide an empty array if values property missing in response object. This can occur if any range
+         values (minColumn, maxColumn, minRow, maxRow) are out of scope of the data entered in worksheet
+         */
+
+        response.results = ( resp.values ) ? resp.values : [];
+
+        // Workaround for this issue - https://goo.gl/rsazDP.
+        this._addMissingData( response.results );
+
+        return response;
+      },
+
+      /* Get the number of columns in the result set. */
+      _getTotalCols: function( results ) {
+        var totalCols = 0;
+
+        // Iterate over all rows to find the one with the most columns.
+        results.forEach( function( element ) {
+          if ( element.length > totalCols ) {
+            totalCols = element.length;
+          }
+        } );
+
+        return totalCols;
+      },
+
+      /* Add missing data to results, if applicable. */
+      _addMissingData: function( results ) {
+        var count = 0,
+          totalCols = this._getTotalCols( results ),
+          i;
+
+        // Append cells to rows that have an incorrect number of columns.
+        results.forEach( function( element ) {
+          if ( element.length < totalCols ) {
+            count = totalCols - element.length;
+
+            for ( i = 0; i < count; i++ ) {
+              element.push( "" );
+            }
+          }
+        } );
+      },
+
+      _handleQuotaExceeded: function() {
+        var self = this;
+
+        this.$.data.getItem( this._getDataKey(), function( cachedData ) {
+          if ( cachedData ) {
+            self._setResults( cachedData.data.results );
+          }
+
+          self.fire( "rise-google-sheet-quota", ( cachedData ) ? cachedData.data : null );
+        } );
+
+        this._requestPending = false;
+        this._startTimer();
+      },
+
+      _handleNoNetwork: function( resp ) {
+        var self = this;
+
+        this.$.data.getItem( this._getDataKey(), function( cachedData ) {
+          if ( cachedData ) {
+            self._setResults( cachedData.data.results );
+
+            self.fire( "rise-google-sheet-response", cachedData.data );
+          } else {
+            self.fire( "rise-google-sheet-error", resp );
+          }
+        } );
+
+        this._requestPending = false;
+        this._startTimer();
+      },
+
+      _onSheetError: function( e, resp ) {
+        // in case there are other instances of rise-google-sheet
+        e.stopPropagation();
+
+        if ( resp.request ) {
+          /* eslint-disable indent */
+          switch ( resp.request.status ) {
+            case 0:
+              this._handleNoNetwork( resp );
+              break;
+            case 429:
+              this._handleQuotaExceeded();
+              break;
+            default:
+              // reset the value of cells
+              this._setResults( [] );
+
+              // delete cached data
+              this.$.data.deleteItem( this._getDataKey() );
+
+              this.fire( "rise-google-sheet-error", resp );
+
+              this._requestPending = false;
+              this._startTimer();
+
+              break;
+          }
+          /* eslint-enable indent */
+        }
+
+      },
+
+      _onSheetResponse: function( e, resp ) {
+        var responseData,
+          cacheObj = {};
+
+        // in case there are other instances of rise-google-sheet
+        e.stopPropagation();
+
+        if ( resp && resp.response ) {
+          responseData = this._prepareResponse( resp.response );
+
+          cacheObj.data = responseData;
+          cacheObj.timestamp = moment().format();
+
+          this.$.data.saveItem( this._getDataKey(), cacheObj );
+
+          // use setter method to apply results value because this property is read only
+          this._setResults( responseData.results );
+
+          this.fire( "rise-google-sheet-response", responseData );
+        }
+
+        this._requestPending = false;
+        this._startTimer();
+
+      },
+
+      _onDataPingReceived: function() {
+        this._dataPingReceived = true;
+
+        if ( this._requestWaiting ) {
+          this._requestWaiting = false;
+          this.go();
+        }
+      },
+
+      _getParams: function() {
+        var params = {};
+
+        // required to obtain public data
+        params.key = this.apikey;
+
+        params.majorDimension = this.dimension;
+
+        params.valueRenderOption = this.render;
+
+        return params;
+      },
+
+      _getRange: function() {
+        return ( this.range === "" ) ? "" : "!" + this.range;
+      },
+
+      _getUrl: function() {
+        return API_BASE_URL + this.key + "/values/" + encodeURIComponent( this.sheet ) + this._getRange();
+      },
+
+      _makeRequest: function() {
+        // set flag to prevent further requests in case go() function is called before prior request responds
+        this._requestPending = true;
+
+        // apply url and params to the iron-ajax instance
+        this.$.sheet.url = this._getUrl();
+        this.$.sheet.params = this._getParams();
+
+        this.$.sheet.generateRequest();
+      },
+
+      _process: function( cachedData ) {
+        var refreshVal = parseInt( this.refresh, 10 ),
+          makeRequestFn = this._makeRequest,
+          self = this,
+          then,
+          now,
+          diff;
+
+        if ( this._refreshPending || !cachedData ) {
+          // refresh timer completed or there is no cached data available, make the request
+          this._refreshPending = false;
+          this._makeRequest();
+        } else {
+          if ( this._initialGo ) {
+            this._initialGo = false;
+
+            // first time component is executing go()
+
+            if ( !isNaN( refreshVal ) && refreshVal !== 0 ) {
+              then = moment( cachedData.timestamp );
+              now = moment();
+              diff = now.diff( then, "minutes" );
+
+              // compare refresh value to amount of time that has passed since last timestamp in cached data
+
+              if ( diff >= refreshVal ) {
+                // more time has gone by than the assigned refresh value, make the request
+                this._makeRequest();
+                return;
+              } else {
+                // start a refresh timer with the remaining refresh time left as the interval
+                this.debounce( "refresh", function() {
+                  makeRequestFn.call( self );
+                }, ( refreshVal - diff ) * 60000 );
+              }
+            }
+          }
+
+          this._setResults( cachedData.data.results );
+
+          // provide cached data for the response
+          this.fire( "rise-google-sheet-response", cachedData.data );
+        }
+      },
+
+      /**
+       * Polymer has finished its initialization. This is the entry point.
+       */
+      ready: function() {
+        var params = {
+            event: "ready"
+          },
+          self = this;
+
+        // listen for data ping received
+        this.$.data.addEventListener( "rise-data-ping-received", function() {
+          self._onDataPingReceived();
+        } );
+
+        // only include usage_type if it's a valid usage value
+        if ( this._isValidUsage( this.usage ) ) {
+          params.usage_type = this.usage;
+        }
+
+        params.version = sheetVersion;
+
+        // log usage
+        this.$.logger.log( BQ_TABLE_NAME, params );
+      },
+
+      /**
+       * Performs a request to obtain the Google Sheet data
+       *
+       */
+      go: function() {
+        var self = this;
+
+        // key, apikey, and sheet are required, don't make request if any are missing or if a previous request is pending
+        if ( this.key === "" || this.apikey === "" || this.sheet === "" || this._requestPending ) {
+          return;
+        }
+
+        if ( this._dataPingReceived ) {
+          this.$.data.getItem( this._getDataKey(), function( cachedData ) {
+            self._process( cachedData );
+          } );
+        } else {
+          this._requestWaiting = true;
+        }
+
+      }
+
+    } );
+  } )();
+</script>

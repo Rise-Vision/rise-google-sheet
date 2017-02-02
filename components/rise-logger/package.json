@@ -1,0 +1,44 @@
+{
+  "name": "rise-logger",
+  "version": "1.0.4",
+  "description": "Rise Vision web component used for logging usage of a parent web component",
+  "scripts": {
+    "test": "gulp test",
+    "build": "gulp build"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rise-Vision/rise-logger.git"
+  },
+  "keywords": [
+    "polymer",
+    "web-component",
+    "web-components",
+    "logger",
+    "big query"
+  ],
+  "author": "Rise Vision",
+  "license": "GPLv3",
+  "bugs": {
+    "url": "https://github.com/Rise-Vision/rise-logger/issues"
+  },
+  "homepage": "https://github.com/Rise-Vision/rise-logger",
+  "devDependencies": {
+    "colors": "~1.1.0",
+    "del": "~1.1.1",
+    "eslint": "^3.8.1",
+    "eslint-config-idiomatic": "^2.1.0",
+    "eslint-plugin-html": "^1.6.0",
+    "gulp": "~3.8.10",
+    "gulp-bower": "~0.0.10",
+    "gulp-bump": "~0.2.0",
+    "gulp-eslint": "^3.0.1",
+    "gulp-html-replace": "~1.6.1",
+    "run-sequence": "~1.1.0",
+    "web-component-tester": "*",
+    "widget-tester": "git://github.com/Rise-Vision/widget-tester.git"
+  }
+}
