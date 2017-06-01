@@ -1,3 +1,6 @@
+machine:
+  node:
+    version: stable
 dependencies:
   pre:
     # latest stable chrome
