@@ -1,6 +1,6 @@
 {
   "name": "rise-google-sheet",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Rise Vision web component for retrieving Google Sheet data",
   "scripts": {
     "test": "gulp test",
