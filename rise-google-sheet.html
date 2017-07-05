@@ -312,7 +312,7 @@ the values that can be provided in this attribute and their impact, see [Google 
         e.stopPropagation();
 
         if ( resp.request ) {
-          if ( resp.request.status === 429) {
+          if ( resp.request.status === 429 ) {
             this._handleQuotaExceeded();
           } else {
             this._handleErrorsWithCachedData( resp );
