@@ -123,29 +123,28 @@
         sheetRequest._handleQuotaExceeded.restore();
       } );
 
-      test( "should start a refresh timer after calling _handleErrorsWithCachedData", function(done) {
+      test( "should start a refresh timer after calling _handleErrorsWithCachedData", function( done ) {
         var getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
-          return cb( { data: { results: sheetData.values }, timestamp: "" } );
-        } );
-
-        var timerStub = sinon.stub( sheetRequest, "_startTimer" );
-        var logStub = sinon.stub( sheetRequest.$.logger, "log" );
+            return cb( { data: { results: sheetData.values }, timestamp: "" } );
+          } ),
+          timerStub = sinon.stub( sheetRequest, "_startTimer" ),
+          logStub = sinon.stub( sheetRequest.$.logger, "log" );
 
         listener = function() {
-          setTimeout(function() {
+          setTimeout( function() {
             assert( timerStub.calledOnce );
             sheetRequest._startTimer.restore();
             getStub.restore();
             logStub.restore();
             sheetRequest.removeEventListener( "rise-google-sheet-error", listener );
             done();
-          },100);
+          }, 100 );
         };
 
         sheetRequest.addEventListener( "rise-google-sheet-error", listener );
 
         sheetRequest._onSheetError( e, errorData );
-        clock.tick(100);
+        clock.tick( 100 );
       } );
     } );
 
