@@ -68,13 +68,13 @@
       } );
 
       test( "should return correct data key using unique and required sheet key and name", function() {
-        assert.equal( sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1" );
+        assert.equal( sheetRequest._getDataKey(), "risesheet_abc123_Sheet%2F1" );
       } );
 
       test( "should return correct data key using unique sheet key and range", function() {
         sheetRequest.range = "A1:C3";
 
-        assert.equal( sheetRequest._getDataKey(), "risesheet_abc123_Sheet/1_A1:C3" );
+        assert.equal( sheetRequest._getDataKey(), "risesheet_abc123_Sheet%2F1_A1:C3" );
       } );
 
     } );
@@ -84,21 +84,19 @@
         "stopPropagation": function() {}
       };
 
-      test( "should fire rise-google-sheet-error when handling <iron-ajax> request error ", function( done ) {
-        listener = function() {
-          responded = true;
+      test( "should call _handleErrorsWithCachedData when handling <iron-ajax> request error ", function( ) {
+        var _handleErrorsWithCachedDataStub = sinon.stub( sheetRequest, "_handleErrorsWithCachedData" );
 
-          sheetRequest.removeEventListener( "rise-google-sheet-error", listener );
-        };
-
-        sheetRequest.addEventListener( "rise-google-sheet-error", listener );
         sheetRequest._onSheetError( e, errorData );
-        assert.isTrue( responded );
-        done();
+
+        assert.isTrue( _handleErrorsWithCachedDataStub.calledOnce );
+
+        sheetRequest._handleErrorsWithCachedData.restore();
+
       } );
 
-      test( "should call _handleNoNetwork if request status is 0", function() {
-        var noNetworkStub = sinon.stub( sheetRequest, "_handleNoNetwork" );
+      test( "should call _handleErrorsWithCachedData if request status is 0", function() {
+        var _handleErrorsWithCachedDataStub = sinon.stub( sheetRequest, "_handleErrorsWithCachedData" );
 
         sheetRequest._onSheetError( e, {
           "request": {
@@ -106,9 +104,9 @@
           }
         } );
 
-        assert.isTrue( noNetworkStub.calledOnce );
+        assert.isTrue( _handleErrorsWithCachedDataStub.calledOnce );
 
-        sheetRequest._handleNoNetwork.restore();
+        sheetRequest._handleErrorsWithCachedData.restore();
       } );
 
       test( "should call _handleQuotaExceeded if request status is 429", function() {
@@ -125,25 +123,30 @@
         sheetRequest._handleQuotaExceeded.restore();
       } );
 
-      test( "should call deleteItem on data component", function() {
-        var spy = sinon.spy( sheetRequest.$.data, "deleteItem" );
+      test( "should start a refresh timer after calling _handleErrorsWithCachedData", function(done) {
+        var getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
+          return cb( { data: { results: sheetData.values }, timestamp: "" } );
+        } );
 
-        sheetRequest._onSheetError( e, errorData );
-
-        assert.isTrue( spy.calledOnce );
-
-        sheetRequest.$.data.deleteItem.restore();
-      } );
-
-      test( "should start a refresh timer after firing rise-google-sheet-error", function() {
         var timerStub = sinon.stub( sheetRequest, "_startTimer" );
+        var logStub = sinon.stub( sheetRequest.$.logger, "log" );
+
+        listener = function() {
+          setTimeout(function() {
+            assert( timerStub.calledOnce );
+            sheetRequest._startTimer.restore();
+            getStub.restore();
+            logStub.restore();
+            sheetRequest.removeEventListener( "rise-google-sheet-error", listener );
+            done();
+          },100);
+        };
+
+        sheetRequest.addEventListener( "rise-google-sheet-error", listener );
 
         sheetRequest._onSheetError( e, errorData );
-        assert( timerStub.calledOnce );
-
-        sheetRequest._startTimer.restore();
+        clock.tick(100);
       } );
-
     } );
 
     suite( "_onSheetResponse", function() {
@@ -488,7 +491,7 @@
 
     } );
 
-    suite( "_handleNoNetwork", function() {
+    suite( "_handleErrorsWithCachedData", function() {
       var resp = {
           "error": {},
           "request": {
@@ -503,7 +506,7 @@
         getStub.restore();
       } );
 
-      test( "should fire rise-google-sheet-response when cached data exists", function( done ) {
+      test( "should fire rise-google-sheet-error when cached data exists", function( done ) {
         getStub = sinon.stub( sheetRequest.$.data, "getItem", function( key, cb ) {
           return cb( { data: { results: sheetData.values }, timestamp: "" } );
         } );
@@ -514,11 +517,11 @@
           assert.property( response.detail, "results", "detail.results property exists" );
           assert.deepEqual( response.detail.results, sheetData.values );
 
-          sheetRequest.removeEventListener( "rise-google-sheet-response", listener );
+          sheetRequest.removeEventListener( "rise-google-sheet-error", listener );
         };
 
-        sheetRequest.addEventListener( "rise-google-sheet-response", listener );
-        sheetRequest._handleNoNetwork( resp );
+        sheetRequest.addEventListener( "rise-google-sheet-error", listener );
+        sheetRequest._handleErrorsWithCachedData( resp );
 
         assert.isTrue( responded );
 
@@ -539,7 +542,7 @@
         };
 
         sheetRequest.addEventListener( "rise-google-sheet-error", listener );
-        sheetRequest._handleNoNetwork( resp );
+        sheetRequest._handleErrorsWithCachedData( resp );
 
         assert.isTrue( responded );
 

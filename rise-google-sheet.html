@@ -76,7 +76,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 </dom-module>
 
 <!-- build:version -->
-<script>var sheetVersion = "2.4.6";</script>
+<script>var sheetVersion = "2.4.7";</script>
 <!-- endbuild -->
 
 <script>
@@ -212,7 +212,7 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _getDataKey: function() {
-        return DATAKEY_BASE_NAME + "_" + this.key + "_" + this.sheet +
+        return DATAKEY_BASE_NAME + "_" + this.key + "_" + encodeURIComponent( this.sheet ) +
           ( this.range === "" ? "" : "_" + this.range );
       },
 
@@ -292,17 +292,15 @@ the values that can be provided in this attribute and their impact, see [Google 
         this._startTimer();
       },
 
-      _handleNoNetwork: function( resp ) {
+      _handleErrorsWithCachedData: function( resp ) {
         var self = this;
 
         this.$.data.getItem( this._getDataKey(), function( cachedData ) {
           if ( cachedData ) {
             self._setResults( cachedData.data.results );
-
-            self.fire( "rise-google-sheet-response", cachedData.data );
-          } else {
-            self.fire( "rise-google-sheet-error", resp );
+            resp = Object.assign( resp, cachedData.data );
           }
+          self.fire( "rise-google-sheet-error", resp );
         } );
 
         this._requestPending = false;
@@ -316,24 +314,11 @@ the values that can be provided in this attribute and their impact, see [Google 
         if ( resp.request ) {
           /* eslint-disable indent */
           switch ( resp.request.status ) {
-            case 0:
-              this._handleNoNetwork( resp );
-              break;
             case 429:
               this._handleQuotaExceeded();
               break;
             default:
-              // reset the value of cells
-              this._setResults( [] );
-
-              // delete cached data
-              this.$.data.deleteItem( this._getDataKey() );
-
-              this.fire( "rise-google-sheet-error", resp );
-
-              this._requestPending = false;
-              this._startTimer();
-
+              this._handleErrorsWithCachedData( resp );
               break;
           }
           /* eslint-enable indent */
