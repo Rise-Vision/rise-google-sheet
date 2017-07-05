@@ -95,6 +95,57 @@
 
     } );
 
+    suite( "_onSheetFetchError", function() {
+      var _handleErrorsWithCachedDataStub;
+
+      setup( function() {
+        _handleErrorsWithCachedDataStub = sinon.stub( sheetRequest, "_handleErrorsWithCachedData" );
+      } );
+
+      teardown( function() {
+        _handleErrorsWithCachedDataStub.restore();
+      } );
+
+      test( "should call _handleErrorsWithCachedData when handling fetch request error ", function( ) {
+        sheetRequest._onSheetFetchError( new Error( JSON.stringify( {
+          status: 400,
+          statusText: "The request failed with status code: 400"
+        } ) ), "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet/1?key=def456&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE" );
+
+        assert.property( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ], "request" );
+        assert.deepEqual( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ].request, {
+          url: "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet/1?key=def456&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE",
+          status: 400
+        } );
+        assert.property( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ], "error" );
+        assert.equal( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ].error.message, "The request failed with status code: 400" );
+      } );
+
+      test( "should call _handleErrorsWithCachedData if no network", function() {
+        sheetRequest._onSheetFetchError( new Error( "No internet connection" ), "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet/1?key=def456&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE" );
+
+        assert.property( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ], "request" );
+        assert.deepEqual( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ].request, {
+          url: "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet/1?key=def456&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE"
+        } );
+        assert.notProperty( _handleErrorsWithCachedDataStub.args[ 0 ][ 0 ], "error" );
+      } );
+
+      test( "should call _handleQuotaExceeded if request status is 429", function() {
+        var quotaStub = sinon.stub( sheetRequest, "_handleQuotaExceeded" );
+
+        sheetRequest._onSheetFetchError( new Error( JSON.stringify( {
+          status: 429,
+          statusText: "The request failed with status code: 429"
+        } ) ), "https://sheets.googleapis.com/v4/spreadsheets/abc123/values/Sheet/1?key=def456&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE" );
+
+        assert.isTrue( quotaStub.calledOnce );
+
+        sheetRequest._handleQuotaExceeded.restore();
+      } );
+
+    } );
+
     suite( "_onSheetError", function() {
       var e = {
         "stopPropagation": function() {}
@@ -255,9 +306,9 @@
             "majorDimension": "ROWS",
             "range": "Sheet1!A1:F999",
             "values": [
-            [ "Apple" ],
-            [ "Milk", "Drink", "3.99" ],
-            [ "Crackers", "Snack" ] ]
+              [ "Apple" ],
+              [ "Milk", "Drink", "3.99" ],
+              [ "Crackers", "Snack" ] ]
           },
           response = sheetRequest._prepareResponse( data );
 
@@ -319,6 +370,18 @@
           [ "Crackers", "Snack", "5.99" ]
         ] );
       } );
+    } );
+
+    suite( "_serialize", function() {
+
+      test( "should provide a string of query params", function() {
+        assert.equal( sheetRequest._serialize( {
+          "key": "def456",
+          "majorDimension": "ROWS",
+          "valueRenderOption": "FORMATTED_VALUE"
+        } ), "key=def456&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE" );
+      } );
+
     } );
 
     suite( "_getParams", function() {
@@ -647,6 +710,42 @@
         assert.equal( logStub.args[ 0 ][ 0 ], "component_sheet_events" );
         assert.include( JSON.stringify( logStub.args[ 0 ][ 1 ] ), "{\"event\":\"ready\",\"usage_type\":\"widget\",\"version\":" );
       } );
+    } );
+
+    suite( "_makeRequest", function() {
+      var requestStub,
+        fetchStub;
+
+      setup( function() {
+        requestStub = sinon.stub( sheetRequest.$.sheet, "generateRequest" );
+        fetchStub = sinon.stub( sheetRequest, "_makeFetchRequest" );
+      } );
+
+      teardown( function() {
+        requestStub.restore();
+        fetchStub.restore();
+      } );
+
+      test( "should use iron-ajax to request to Sheets API", function() {
+        sheetRequest._makeRequest();
+
+        assert.isTrue( requestStub.calledOnce );
+        assert.equal( fetchStub.callCount, 0 );
+      } );
+
+      test( "should use Fetch to request to Sheets API", function() {
+        sinon.stub( sheetRequest, "_isRiseCacheSchemeEnabled", function() {
+          return true;
+        } );
+
+        sheetRequest._makeRequest();
+
+        assert.equal( requestStub.callCount, 0 );
+        assert.isTrue( fetchStub.calledOnce );
+
+        sheetRequest._isRiseCacheSchemeEnabled.restore();
+      } );
+
     } );
 
     suite( "_process", function() {
