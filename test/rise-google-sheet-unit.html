@@ -61,6 +61,22 @@
 
     } );
 
+    suite( "_isRiseCacheSchemeEnabled", function() {
+
+      test( "should return false if top window flag doesn't exist", function() {
+        assert.isFalse( sheetRequest._isRiseCacheSchemeEnabled() );
+      } );
+
+      test( "should return true if last event is throttled", function() {
+        top.enableRiseCacheScheme = true;
+
+        assert.isTrue( sheetRequest._isRiseCacheSchemeEnabled() );
+
+        top.enableRiseCacheScheme = false;
+      } );
+
+    } );
+
     suite( "_getDataKey", function() {
 
       teardown( function() {

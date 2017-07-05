@@ -211,6 +211,16 @@ the values that can be provided in this attribute and their impact, see [Google 
         return usage === "standalone" || usage === "widget";
       },
 
+      _isRiseCacheSchemeEnabled: function() {
+        try {
+          if ( top.enableRiseCacheScheme ) {
+            return true;
+          }
+        } catch ( err ) {} // eslint-disable-line no-empty
+
+        return false;
+      },
+
       _getDataKey: function() {
         return DATAKEY_BASE_NAME + "_" + this.key + "_" + encodeURIComponent( this.sheet ) +
           ( this.range === "" ? "" : "_" + this.range );
