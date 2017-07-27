@@ -65,7 +65,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 <dom-module id="rise-google-sheet">
   <template>
     <rise-logger id="logger"></rise-logger>
-    <rise-data id="data" endpoint="spreadsheets"></rise-data>
+    <rise-data id="data" endpoint="spreadsheets" storage-type="local"></rise-data>
     <iron-ajax id="sheet"
                handle-as="json"
                on-response="_onSheetResponse"
@@ -76,7 +76,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 </dom-module>
 
 <!-- build:version -->
-<script>var sheetVersion = "2.4.8";</script>
+<script>var sheetVersion = "2.4.9";</script>
 <!-- endbuild -->
 
 <script>
