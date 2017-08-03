@@ -76,7 +76,7 @@ the values that can be provided in this attribute and their impact, see [Google 
 </dom-module>
 
 <!-- build:version -->
-<script>var sheetVersion = "2.4.9";</script>
+<script>var sheetVersion = "2.4.10";</script>
 <!-- endbuild -->
 
 <script>
@@ -222,7 +222,7 @@ the values that can be provided in this attribute and their impact, see [Google 
       },
 
       _getDataKey: function() {
-        return DATAKEY_BASE_NAME + "_" + this.key + "_" + encodeURIComponent( this.sheet ) +
+        return DATAKEY_BASE_NAME + "_" + this.key + "_" + encodeURIComponent( this.sheet.replace( /\s+/g, "_" ) ) +
           ( this.range === "" ? "" : "_" + this.range );
       },
 
