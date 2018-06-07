@@ -1,6 +1,6 @@
 {
   "name": "rise-google-sheet",
-  "version": "2.4.11",
+  "version": "2.4.12",
   "description": "Rise Vision web component for retrieving Google Sheet data",
   "scripts": {
     "test": "gulp test",
@@ -39,6 +39,6 @@
     "gulp-html-replace": "~1.6.1",
     "run-sequence": "~1.1.0",
     "web-component-tester": "*",
-    "widget-tester": "git://github.com/Rise-Vision/widget-tester.git"
+    "widget-tester": "git://github.com/Rise-Vision/widget-tester.git#v1.8.1"
   }
 }
