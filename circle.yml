@@ -1,6 +1,6 @@
 machine:
   node:
-    version: stable
+    version: 6.9.1
 dependencies:
   pre:
     # latest stable chrome
